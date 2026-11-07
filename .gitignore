@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.log
+*.bmp
+*.png
+*.jpg
+*.jpeg
+*.tar.gz
+src/
+backups/
+secrets/
+.env
+build/

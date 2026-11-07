@@ -1,0 +1,5 @@
+[Unit]
+Description=Check BlackBerry Hub Wi-Fi binding
+[Service]
+Type=oneshot
+ExecStart=/home/SD/BlackBerryLocalDashboard/network-watch.sh

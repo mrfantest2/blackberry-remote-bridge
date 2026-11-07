@@ -1,0 +1,12 @@
+[Unit]
+Description=Fantest BlackBerry Local Hub
+After=network-online.target bluetooth.target
+Wants=network-online.target
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/SD/BlackBerryLocalDashboard/serve.py
+Restart=on-failure
+RestartSec=5
+WorkingDirectory=/home/SD/BlackBerryLocalDashboard
+[Install]
+WantedBy=default.target
