@@ -25,3 +25,9 @@ References:
 5. Require a controlled, reversible first on-device test and compare screenshots before/after a harmless navigation event.
 
 **Status:** architecture identified; signing, installation and actual input injection NOT VERIFIED. No phone modifications performed.
+
+## Checkpoint 009 findings
+
+MASTER-PC has JDK 17 and JDK 21 installed, but no BlackBerry JDE was found at the standard Research In Motion installation locations. The Steam Deck does not currently have Java installed on the host. The live device reports VM `7.0.1.40` through Barry. This is **not** a verified full OS release number.
+
+BlackBerry's documented `EventInjector` API requires a signed application and Input Simulation permission on a physical handset. The offline protocol test suite is automated in GitHub Actions; it does not imply native BlackBerry build success. Until the legacy signing authority and a legitimate SDK are verified, physical-device input injection remains blocked. No unsigned or untrusted binaries were installed.
