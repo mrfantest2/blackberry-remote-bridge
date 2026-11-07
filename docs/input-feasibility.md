@@ -1,18 +1,27 @@
-# BlackBerry Torch 9810 input feasibility (checkpoint 004)
+# BlackBerry Torch 9810 input-control feasibility — checkpoint 007
 
-## Confirmed
-- Torch 9810: USB `0fca:8004`; Barry 0.19.0 `bjavaloader deviceinfo` and `screenshot` work.
-- `src/m_javaloader.h` exposes `GetScreenshot`, `DeviceInfo`, app load/erase, log and other device-management operations; it does **not** declare keyboard/touch input APIs.
-- The BlackBerry Bluetooth SDP listing did not advertise HID input services in earlier pairing tests.
-- The browser can display the Deck-hosted local dashboard, but page navigation does not grant control over BlackBerry OS.
+## Verified locally
 
-## Unverified paths
-1. An opt-in BlackBerry OS 7 Java companion app might expose a limited command channel, but OS signing, permissions and cross-app input restrictions must be evaluated. Do not install anything on the device without validating its provenance and safety.
-2. Legacy desktop remote-control utilities may implement proprietary protocols. Treat compatibility claims as unverified until tested on this exact Torch 9810.
-3. External physical HID hardware would need independent compatibility testing and may not emulate touch input.
+- USB 0fca:8004 responds to Barry read-only screenshot and device information.
+- Barry source inspected: no documented USB key/touch injection API.
+- Bluetooth SDP advertises OBEX, audio, desktop, phonebook and message access, but no HID service; the phone is paired and not currently connected over Bluetooth.
+- Private screenshot viewer is operational on Steam Deck localhost; MASTER-PC access via authenticated SSH port forward is independently verified.
 
-## Security boundaries
-- Do not expose screenshots via the existing unauthenticated LAN dashboard.
-- Store screenshots in `/home/SD/BlackBerryBridge/private-captures` and PNG previews in `private-previews`, both outside Git.
-- Do not run Barry firmware/erase/reset operations.
-- Do not call screenshots 'remote control' until an authenticated input mechanism is demonstrated end to end.
+## Legacy BlackBerry OS 7 native API path
+
+BlackBerry JDE 7.1 documentation documents `net.rim.device.api.system.EventInjector` and its KeyEvent, KeyCodeEvent, NavigationEvent and TouchEvent classes. `ApplicationPermissions.PERMISSION_INPUT_SIMULATION` gates event injection. The API is signed/controlled and requires appropriate device permissions. A phone-side application must receive authenticated commands and call EventInjector locally; the existing Barry screenshot interface alone cannot inject events.
+
+References:
+- https://nikita36078.github.io/J2ME_Docs/docs/BlackBerry_API_7_1_0/net/rim/device/api/system/EventInjector.html
+- https://nikita36078.github.io/J2ME_Docs/docs/BlackBerry_API_7_1_0/net/rim/device/api/applicationcontrol/ApplicationPermissions.html
+- https://www.blackberry.com/en/secure-communications/support/end-of-life
+
+## Engineering gates before any phone changes
+
+1. Obtain an authentic, compatible BlackBerry JDE 7.x toolchain and confirm the actual installed OS and existing applications without modifying the phone.
+2. Establish whether valid legacy code signing and `PERMISSION_INPUT_SIMULATION` authorization are still possible; BlackBerry OS 7 services are end-of-life. Do not bypass signature or OS permission checks.
+3. If feasible, implement a minimal companion app with local pairing, allowlisted navigation commands, explicit on-device enable/disable, and no unattended input on lock screens.
+4. Keep screenshot transport independent and encrypted. Do not expose an unauthenticated HTTP input endpoint.
+5. Require a controlled, reversible first on-device test and compare screenshots before/after a harmless navigation event.
+
+**Status:** architecture identified; signing, installation and actual input injection NOT VERIFIED. No phone modifications performed.
