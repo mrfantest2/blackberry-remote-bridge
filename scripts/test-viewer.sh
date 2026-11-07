@@ -14,3 +14,13 @@ test "$code" = 405 && echo "PASS HEAD HTTP $code"
 bind=$(ss -H -lnt '( sport = :18765 )' | awk '{print $4}')
 test "$bind" = '127.0.0.1:18765' || { echo "FAIL viewer bind $bind"; exit 1; }
 echo 'PASS viewer loopback-only binding'
+
+# Confirm the MASTER-PC tunnel helper remains bound to loopback on both ends.
+python3 - <<'PYTEST'
+from pathlib import Path
+s=Path('/home/SD/BlackBerryBridge/project/scripts/open-masterpc-viewer.ps1').read_text()
+assert 'ExitOnForwardFailure=yes' in s
+assert '127.0.0.1:$($LocalPort):127.0.0.1:18765' in s
+assert 'SD@100.72.130.8' in s
+print('PASS SSH tunnel helper uses localhost endpoints')
+PYTEST
