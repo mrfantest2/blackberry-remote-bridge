@@ -8,4 +8,4 @@ test -f "$SOURCE/configure.ac" || { echo "Missing upstream Barry source: $SOURCE
 # Never mount /dev/bus/usb or grant privileges to a build container.
 podman build -f "$HERE/Containerfile.barry" -t localhost/blackberry-barry-build:ubuntu24 "$HERE" 2>&1 | tee "$LOGDIR/container-build.log"
 "$HERE/scripts/patch-barry.sh" "$SOURCE"
-podman run --rm --network none -v "$SOURCE:/work:Z" localhost/blackberry-barry-build:ubuntu24 bash -c 'set -e; ./buildgen.sh; ./configure --disable-gui --disable-desktop --disable-opensync-plugin --disable-opensync-plugin-4x; make -j2 -C src; make -j2 -C tools bjavaloader' 2>&1 | tee "$LOGDIR/barry-build.log"
+podman run --rm --network none -v "$SOURCE:/work:Z" localhost/blackberry-barry-build:ubuntu24 bash -c 'set -e; ./buildgen.sh; ./configure --disable-gui --disable-desktop --disable-opensync-plugin --disable-opensync-plugin-4x; make -j2 -C src; make -C src install DESTDIR=/tmp/barry-stage >/tmp/barry-stage-install.log; make -j2 -C tools bjavaloader CPPFLAGS=-I/tmp/barry-stage/usr/local/include/barry19 LDFLAGS=-L/work/src/.libs' 2>&1 | tee "$LOGDIR/barry-build.log"

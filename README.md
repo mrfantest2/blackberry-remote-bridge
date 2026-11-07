@@ -29,3 +29,11 @@ Review `dashboard/serve.py` and `systemd/` before using. Existing live files are
 1. Build legacy Barry tools inside a container with pinned dependencies and a preserved build log.
 2. Run `bjavaloader` help then read-only `deviceinfo` and screenshot only after confirming command behavior and USB permissions.
 3. Document actual device-specific results; investigate remote-input feasibility separately.
+
+## Checkpoint 003 verified (2026-11-07)
+- Barry 0.19.0 compiled in Ubuntu 24.04 container after a one-line `#include <ctime>` compatibility patch.
+- Rootless Podman requires `--userns keep-id --security-opt label=disable` plus access to the specific USB device node to use existing host ACLs. This is not a privileged container.
+- `bjavaloader deviceinfo` succeeded on the Torch 9810.
+- `bjavaloader screenshot` produced a 480x640 32-bit BMP, 1,228,854 bytes; screenshot stays private on the Deck under `/home/SD/BlackBerryBridge/private-captures`.
+- Screenshot capture is **not** remote keyboard or touch control; those capabilities remain unverified.
+- Use `scripts/read-only-usb.sh deviceinfo` or `scripts/read-only-usb.sh screenshot`. The script rejects other commands.
