@@ -1,0 +1,10 @@
+# Legacy Barry build isolation. Not a runtime image; do not pass USB devices during compilation.
+FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get -o Acquire::Retries=2 update && apt-get -o Acquire::Retries=2 install -y --no-install-recommends \
+ build-essential autoconf automake libtool pkg-config libusb-1.0-0-dev \
+ libboost-dev libboost-serialization-dev libboost-thread-dev \
+ libboost-filesystem-dev libboost-system-dev libxml2-dev zlib1g-dev \
+ gettext autopoint libtar-dev ca-certificates && \
+ rm -rf /var/lib/apt/lists/*
+WORKDIR /work
