@@ -1,0 +1,11 @@
+[Unit]
+Description=BlackBerry private screenshot viewer (localhost only)
+After=network.target
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/SD/BlackBerryBridge/project/viewer/server.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+[Install]
+WantedBy=default.target
