@@ -11,3 +11,6 @@ backups/
 secrets/
 .env
 build/
+private-captures/
+private-previews/
+*.bundle
