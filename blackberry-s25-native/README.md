@@ -1,19 +1,9 @@
-# S25 Hub — BlackBerry Torch 9810 native client
+# S25 Remote Hub — native BlackBerry OS 7 application
 
-Native BlackBerry Java OS 7 BrowserField2 shell targeting `https://s25.fantest.win/`.
+This is a **native Java BlackBerry UI**, not a BrowserField/web wrapper. `S25Hub.java` uses `MainScreen`, `LabelField`, `ButtonField`, a background network worker, and BlackBerry-compatible J2ME `HttpConnection`.
 
-## Current status
+Current buttons perform **read-only** GET requests to proposed endpoints `/api/native/v1/status`, `/api/native/v1/battery`, and `/api/native/v1/device`. These endpoints are NOT verified or deployed. The application rejects HTML and does not treat a login page as device status. No remote actions are wired until the S25 API and access control are verified.
 
-Source scaffold only; no `.cod` has been built, signed or installed. Requires authentic BlackBerry JDE 7.x (`net_rim_api.jar`, `rapc`) and compatible signing capability. BrowserField2 is a legacy engine: modern JavaScript, CSS, TLS and certificate-chain compatibility remain unverified on the Torch 9810.
+No password or token is embedded. The target website currently serves a sign-in page. To avoid daily login prompts without making remote control public, implement a one-time device pairing and revocable remembered session on the backend. The BB OS 7 TLS and modern server compatibility must be verified on real hardware.
 
-## Authentication
-
-This client intentionally does **not** bypass the website's existing authentication. Current live endpoint presents `Fantest S25 Hub · Sign in`. The desired no-prompt experience must use an authenticated, device-bound session or one-time pairing implemented on the backend; removing authentication from remote control is not safe. No secret or token is embedded in source.
-
-## Build prerequisites
-
-- BlackBerry JDE 7.x and device-appropriate signing support
-- Compatible HTTPS/TLS connection on device
-- Backend implementation of a remembered, revocable device session (not yet implemented)
-
-This project must not be represented as a working APK or installable COD until built and tested on hardware.
+Requires authentic BlackBerry JDE 7.x (`rapc`, `net_rim_api.jar`), legacy code-signing availability, and on-device testing. No installable `.cod` has been produced.
