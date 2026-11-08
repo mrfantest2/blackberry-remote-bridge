@@ -1,10 +1,8 @@
-import net.rim.device.api.ui.UiApplication;
-import net.rim.device.api.ui.Ui;
+﻿import net.rim.device.api.ui.UiApplication;
 import net.rim.device.api.ui.Field;
 import net.rim.device.api.ui.FieldChangeListener;
 import net.rim.device.api.ui.component.ButtonField;
 import net.rim.device.api.ui.component.LabelField;
-import net.rim.device.api.ui.component.Dialog;
 import net.rim.device.api.ui.container.MainScreen;
 import java.io.InputStream;
 import java.io.ByteArrayOutputStream;
@@ -76,6 +74,7 @@ public final class S25Hub extends UiApplication {
                 }
             }).start();
         }
-        public boolean onClose() { Dialog.alert("S25 Remote Hub closed"); return super.onClose(); }
+        public boolean onClose() { return super.onClose(); }
     }
 }
+
