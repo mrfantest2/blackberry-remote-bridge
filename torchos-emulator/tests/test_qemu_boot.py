@@ -93,6 +93,8 @@ class QemuBoot(unittest.TestCase):
         help_out = self.console.command(b"help\r")
         self.assertIn(b"Available: help about status clear history notes files", help_out)
         status = self.console.command(b"status\r")
+        self.assertIn(b"guest FDT validated", status)
+        self.assertIn(b"guest FDT discovered", status)
         self.assertIn(b"BlackBerry hardware: NOT CONNECTED", status)
         self.assertIn(b"NOT IMPLEMENTED", status)
         files = self.console.command(b"files\r")
