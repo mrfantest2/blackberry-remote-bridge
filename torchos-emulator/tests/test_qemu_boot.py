@@ -17,7 +17,7 @@ class ArmConsole:
             [
                 "qemu-system-arm", "-machine", "virt",
                 "-cpu", "cortex-a15", "-m", "128M",
-                "-display", "none", "-monitor", "none",
+                "-display", "none", "-monitor", "none", "-nic", "none",
                 "-serial", "stdio", "-no-reboot", "-kernel", str(ELF),
             ],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
