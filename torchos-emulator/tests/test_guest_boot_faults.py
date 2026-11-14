@@ -107,8 +107,9 @@ class ActualGuestFaults(unittest.TestCase):
                 "qemu-system-arm", "-machine", MACHINE, "-cpu", "cortex-a15",
                 "-m", "128M", "-display", "none", "-monitor", "none",
                 "-nic", "none", "-serial", "stdio", "-no-reboot",
-                "-kernel", str(ELF),
-                "-device", f"loader,file={dtb},addr=0x40000000,force-raw=on",
+                "-kernel", str(ELF), "-S",
+                "-chardev", f"socket,path={folder / 'gdb.sock'},server=on,wait=off,id=gdb0",
+                "-gdb", "chardev:gdb0",
                 "-qmp", f"unix:{sock},server=on,wait=off",
             ]
             proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL,
@@ -123,6 +124,21 @@ class ActualGuestFaults(unittest.TestCase):
                         proc.terminate()
                     out, err = proc.communicate(timeout=3)
                     self.fail(f"QEMU/QMP initialization failed: {exc}; stdout={out!r}; stderr={err!r}; command={cmd!r}")
+                # Pause before the first ARM instruction, write to real
+                # guest RAM, and independently read back exact DTB bytes.
+                restored = folder / "readback.dtb"
+                gdb = subprocess.run([
+                    "gdb-multiarch", "-q", "--batch",
+                    "-ex", f"target remote {folder / 'gdb.sock'}",
+                    "-ex", f"restore {dtb} binary 0x40000000",
+                    "-ex", f"dump binary memory {restored} 0x40000000 0x{0x40000000 + len(blob):x}",
+                    "-ex", "disconnect",
+                ], text=True, capture_output=True, timeout=10)
+                self.assertEqual(gdb.returncode, 0,
+                                 f"GDB injection failed: {gdb.stdout} {gdb.stderr}")
+                self.assertEqual(restored.read_bytes(), blob,
+                                 "DTB readback differs from injected guest RAM")
+                client.hmp("cont")
                 deadline = time.monotonic() + 3
                 phase = None
                 while time.monotonic() < deadline:
