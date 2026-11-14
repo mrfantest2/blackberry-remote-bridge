@@ -43,7 +43,7 @@ An accepted initial hosted run [#43648081565](https://github.com/mrfantest2/blac
 
 A subsequent hosted run [#43648589874](https://github.com/mrfantest2/blackberry-remote-bridge/actions/runs/43648589874) completed **57/57** with **actual GICv2 SGI0 delivery** to the guest's IRQ vector. QMP verified exception kind `5` and saved pre-interrupt SPSR `0x20000153`, with IRQ unmasked **only** by the isolated probe. A host-side MMIO-write approach failed to cause an IRQ and was replaced with guest-generated MMIO, rather than weakening the test to silence or a mocked IRQ.
 
-Strengthened IRQ readback assertions and final GitHub checks must pass on the final PR head before merge; later report updates may add their links.
+Strengthened guest GIC distributor/CPU/priority register readback and exception LR assertions passed. Exact PR-head and post-merge GitHub-hosted checks have now passed; the links and accepted SHAs are recorded below.
 
 ## Acceptance status
 
@@ -53,9 +53,9 @@ Strengthened IRQ readback assertions and final GitHub checks must pass on the fi
 | Eight-vector table, 32-byte VBAR, CP15 readback | **PASS** |
 | Separate UND/ABT/IRQ/FIQ stacks and linker bounds | **PASS** |
 | Actual CPU SVC and undefined-instruction fault capture | **PASS** |
-| Actual QEMU GICv2 SGI0 delivery to guest IRQ vector | **PASS** on first hosted IRQ implementation; final assertions pending |
+| Actual QEMU GICv2 SGI0 delivery to guest IRQ vector | **PASS** including strengthened guest GIC state checks |
 | Existing commands/history/RAM notes | **PASS** |
-| CP006.5 bounded PL011 simulated device fault regression | **PENDING** final head verification |
+| CP006.5 bounded PL011 test-instrumented QEMU fault regression | **PASS**, exact PR head and post-merge |
 | FIQ delivery and physical/timer IRQ servicing | **UNVERIFIED** |
 | Recoverable exception return, nested interrupts, GIC EOI | **NOT IMPLEMENTED** |
 | Retail Torch 9810 independent OS boot or rollback | **BLOCKED / NO-GO** |
@@ -65,3 +65,26 @@ Strengthened IRQ readback assertions and final GitHub checks must pass on the fi
 The currently implemented exception and IRQ vectors are **diagnostic fail-closed handlers**: they do not return to the interrupted task, acknowledge GIC interrupts, schedule processes, set up an MMU, or provide a hardware-compatible BSP. A real virtual GIC software interrupt reaching a vector **does not** mean TorchOS can service an IRQ in production.
 
 **CP006.7 objective:** Implement a **virtual GICv2 interrupt acknowledge/EOI path** for a deliberately authorized virtual timer or SGI and verify that the ARM guest resumes its normal console with bounded and correctly attributed interrupt accounting. Keep the normal no-IRQ path and all existing UART/FDT behavior unchanged. Do not initiate physical BlackBerry testing.
+
+## Final accepted GitHub evidence
+
+**PR [#16](https://github.com/mrfantest2/blackberry-remote-bridge/pull/16) was merged** into the original `feat/torchos-native-shell-20261114` development branch. The production `main` branch was not touched.
+
+| Evidence | Verified GitHub run |
+|---|---|
+| PR-head ARM/QEMU boot, exception, GIC SGI, memory, FDT and command QA | [57/57 PASS, run 43648826421](https://github.com/mrfantest2/blackberry-remote-bridge/actions/runs/43648826421) |
+| PR-head actual ARM UART against test-instrumented QEMU PL011 | [2/2 PASS, run 43648826463](https://github.com/mrfantest2/blackberry-remote-bridge/actions/runs/43648826463) |
+| Post-merge ARM/QEMU acceptance on accepted code SHA | [57/57 PASS, run 43649179280](https://github.com/mrfantest2/blackberry-remote-bridge/actions/runs/43649179280) |
+| Post-merge isolated UART fault acceptance on accepted code SHA | [2/2 PASS, run 43649179288](https://github.com/mrfantest2/blackberry-remote-bridge/actions/runs/43649179288) |
+
+- **Reviewed PR head SHA:** `1fa2e749f1b8373b111b168228d7730d318501af`.
+- **Accepted executable code SHA:** `0db2be3c1843b078cb1bd23c468a625eb6433382`.
+- **59 tests passed across two independent suites** on both PR head and accepted post-merge code; **0 failed / 0 skipped**.
+- Post-merge real QEMU GICv2 SGI0: exception kind `5`, saved CPSR value `0x20000153`, guest IRQ vector entered successfully after test-only SGI configuration and IRQ unmask.
+- Post-merge QEMU PL011 device fault: real guest reports `BOOT_UART_FAILED` with **65,536** MMIO reads, **0 writes**, **0 command dispatches**; normal control console still works.
+- QEMU 8.2.2 source archive SHA-256 was verified again in the UART hosted run.
+- A separately authorized engineering commit `7b95971fd712cd0f97b49205c5c646e518f96f82` landed on the same development base during this task, but was **preserved**: it touched the separate offline/native QA workflow and did not conflict with the seven CP006.6 emulator/documentation files.
+- This final acceptance section is committed **after** the passing code SHA as documentation only. It does not change executable behavior or claim a new code validation on that docs-only SHA.
+- **Next issue:** [#17 — CP006.7: acknowledge/EOI actual virtual IRQ and safely resume console](https://github.com/mrfantest2/blackberry-remote-bridge/issues/17).
+
+**Strict NO-GO:** This is virtual QEMU ARMv7 software only. The retail BlackBerry Torch 9810 has no verified independent kernel boot/complete stock rollback/board drivers from these results. No real handset, OS7 app, backup, firmware, protected boot path, production service or physical device was accessed or modified.
