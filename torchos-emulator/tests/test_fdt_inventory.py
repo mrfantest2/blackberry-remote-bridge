@@ -123,7 +123,7 @@ class ActualQemuDeviceTree(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="torchos-cp0062-") as folder:
             image = Path(folder) / "virt.dtb"
             command = [
-                "qemu-system-arm", "-machine", f"virt,dumpdtb={image}",
+                "qemu-system-arm", "-machine", f"virt-8.2,dumpdtb={image}",
                 "-cpu", "cortex-a15", "-m", "128M", "-nic", "none",
                 "-display", "none", "-monitor", "none", "-serial", "none",
             ]
