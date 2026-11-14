@@ -1,0 +1,14 @@
+<loader version="1.0">
+  <application id="TorchOS">
+    <name>TorchOS Shell Preview</name>
+    <description>Offline native shell preview on stock BlackBerry OS 7.0.</description>
+    <version>0.1.0</version>
+    <vendor>FanTest</vendor>
+    <fileset Java="1.0">
+      <directory>build</directory>
+      <files>
+        <file>TorchOS.cod</file>
+      </files>
+    </fileset>
+  </application>
+</loader>

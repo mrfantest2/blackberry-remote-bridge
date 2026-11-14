@@ -1,0 +1,4 @@
+/build/
+# Parent repo ignores all src directories; this source is a deliverable.
+!/src/
+!/src/TorchOS.java

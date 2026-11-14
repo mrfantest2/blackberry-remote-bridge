@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<title>TorchOS — design preview only</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:24px;background:#080f16;color:#edf4f7;font:18px system-ui,sans-serif}aside{max-width:480px;margin:0 auto 16px;color:#b9cbd6;font-size:15px}.shell{width:480px;height:640px;max-width:100%;margin:auto;background:#101d28;display:flex;flex-direction:column;border:1px solid #2d414f}header{padding:14px 16px 10px;display:flex;justify-content:space-between;align-items:baseline}h1{font-size:28px;margin:0}small,.accent{color:#82e3c2}small{font-size:14px}.status{padding:8px 16px;font-size:18px;border-bottom:1px solid #2d414f}.status span{float:right;color:#82e3c2}.intro{padding:16px}.intro strong{font-size:22px}.intro p{margin:6px 0 0;color:#b9cbd6;font-size:18px}nav{flex:1}button{font:inherit;color:inherit;cursor:pointer}nav button{width:100%;height:64px;text-align:left;background:transparent;border:0;border-bottom:1px solid #2d414f;border-left:5px solid transparent;padding:6px 16px 6px 11px;display:block}button:focus-visible,nav button:focus{outline:0;border-left-color:#82e3c2;background:#244b57}nav b{display:block;font-size:23px}nav span{display:block;color:#b9cbd6;font-size:18px;margin-top:3px}footer{padding:10px 16px;font-size:15px;color:#b9cbd6}footer button,#back{background:#244b57;border:1px solid #82e3c2;padding:6px 10px;margin-bottom:6px}footer p{margin:2px 0}#detail{flex:1;padding:16px;overflow:auto}#detail h2{font-size:24px}#detail p{white-space:pre-line;line-height:1.5} [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<aside>480 × 640 HTML design preview. Illustrates visual language only; this is not on-device code. No network requests or hardware connection.</aside>
+<main class="shell" aria-label="TorchOS design preview">
+<header><h1>TorchOS</h1><small>NATIVE SHELL 0.1</small></header>
+<div class="status"><time id="clock">Local time</time><span>Offline / Preview</span></div>
+<div class="intro" id="intro"><strong>Your space. Within reach.</strong><p>External services: Not connected</p></div>
+<nav id="home" aria-label="Home sections">
+<button data-page="0"><b>1 &nbsp;Devices</b><span>S25 / Steam Deck / MASTER-PC</span></button>
+<button data-page="1"><b>2 &nbsp;Camera</b><span>CamDoor / Xiaomi C301</span></button>
+<button data-page="2"><b>3 &nbsp;Archives</b><span>EchoVault / Tahani memories</span></button>
+<button data-page="3"><b>4 &nbsp;Network</b><span>Abu Jamal Wi-Fi / VPN health</span></button>
+<button data-page="4"><b>5 &nbsp;Notes &amp; Tasks</b><span>Local draft / session checklist</span></button>
+</nav>
+<section id="detail" hidden><button id="back">Back to Home</button><h2 id="title"></h2><p id="copy"></p></section>
+<footer><button data-page="5">Settings / About</button><p>1–5 / D C A W N · S Settings · arrows + Enter</p><p>Preview on stock OS7 · no remote control</p></footer>
+</main>
+<script>
+'use strict';
+const pages = [
+['Devices','S25 — Not connected\nSteam Deck — Not connected\nMASTER-PC — Not connected\n\nNo battery readings or remote actions.'],
+['Camera','CamDoor — Not connected\nXiaomi C301 — Not connected\n\nNo camera feed or camera controls.'],
+['Archives','EchoVault — Not connected\nTahani family memories — Not connected\n\nNo private archive data is bundled.'],
+['Network','Abu Jamal Wi-Fi — Not connected\nVPN health — Not connected\n\nProject labels only. No network probes.'],
+['Notes & Tasks','The native app has a 512-character draft and session checklist.\n\nThis HTML page illustrates the design only. Notes are not editable here.'],
+['Settings / About','TorchOS Shell 0.1\nNative Java launcher preview on stock OS7.\n\nNo firmware replacement, pairing, camera feed, or remote control. Native notes are lost on app exit.']
+];
+const home=document.getElementById('home'), detail=document.getElementById('detail'), intro=document.getElementById('intro');
+let previous=0;
+function openPage(i){previous=i;document.getElementById('title').textContent=pages[i][0];document.getElementById('copy').textContent=pages[i][1];home.hidden=true;intro.hidden=true;detail.hidden=false;document.getElementById('back').focus();}
+function back(){home.hidden=false;intro.hidden=false;detail.hidden=true;document.querySelector('[data-page="'+previous+'"]').focus();}
+document.querySelectorAll('[data-page]').forEach(button=>button.addEventListener('click',()=>openPage(Number(button.dataset.page))));
+document.getElementById('back').addEventListener('click',back);
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!detail.hidden){back();return;}if(home.hidden)return;const keys={'1':0,d:0,'2':1,c:1,'3':2,a:2,'4':3,w:3,'5':4,n:4,'6':5,s:5};const i=keys[event.key.toLowerCase()];if(i!==undefined){event.preventDefault();openPage(i);}else if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();const buttons=Array.from(home.querySelectorAll('button'));let index=buttons.indexOf(document.activeElement);index=Math.max(0,Math.min(4,index+(event.key==='ArrowDown'?1:-1)));buttons[index].focus();}});
+function clock(){document.getElementById('clock').textContent=new Date().toLocaleString(undefined,{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}
+clock();setInterval(clock,30000);home.querySelector('button').focus();
+</script>
+</body>
+</html>

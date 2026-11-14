@@ -1,0 +1,94 @@
+/** Host-only test doubles. These do not emulate or verify the BlackBerry VM. */
+public class HostHarness {
+    static final int BG=0x101D28, INK=0xEDF4F7, MUTED=0xB9CBD6, ACCENT=0x82E3C2;
+    static int count;
+    static void check(boolean ok, String message) {
+        count++;
+        if (!ok) throw new AssertionError(message);
+    }
+    static class Font {
+        static final int PLAIN=0, BOLD=1;
+        int size=22;
+        static Font getDefault() { return new Font(); }
+        Font derive(int style,int size) { Font f=new Font();f.size=size;return f; }
+        int getHeight() { return size+4; } // conservative synthetic metrics, not device measurements
+    }
+    static class Graphics {
+        static final int ELLIPSIS=1;
+        void setColor(int c) {} void setFont(Font f) {}
+        void fillRect(int x,int y,int w,int h) {} void drawLine(int a,int b,int c,int d) {}
+        void drawText(String s,int x,int y,int style,int width) {}
+    }
+    static class Field {
+        static final long NON_FOCUSABLE=0, FOCUSABLE=1, USE_ALL_WIDTH=2;
+        int width,height; boolean focused;
+        Field(long style) {}
+        void setExtent(int w,int h) { width=w;height=h; }
+        int getWidth() { return width; } int getHeight() { return height; }
+        boolean isFocus() { return focused; }
+        void setFocus() { focused=true;onFocus(0); }
+        void invalidate() {} protected void onFocus(int d) {} protected void onUnfocus() { focused=false; }
+        protected boolean keyChar(char k,int f,int t) { return false; }
+        protected boolean touchEvent(TouchEvent e) { return false; }
+    }
+    static class TouchEvent {
+        static final int DOWN=1,MOVE=2,UP=3;
+        int event,x,y;
+        TouchEvent(int event,int x,int y) { this.event=event;this.x=x;this.y=y; }
+        int getX(int touch) { return x; } int getY(int touch) { return y; } int getEvent() { return event; }
+    }
+    // Exact source fragments from src/TorchOS.java are inserted by the Python runner.
+    @@SHORTCUT@@
+    @@BAND@@
+    @@ROW@@
+    public static void main(String[] args) {
+        final int[] fired={0};
+        Row row=new Row("Devices","Not connected",new Runnable(){ public void run(){fired[0]++;}});
+        row.layout(480,640);
+        if (args[0].equals("shortcuts")) {
+            String[] groups={"1dD","2cC","3aA","4wW","5nN","6sS"};
+            for (int c=0;c<=65535;c++) {
+                int expected=-1;
+                for(int i=0;i<groups.length;i++) if(groups[i].indexOf((char)c)>=0) expected=i;
+                // Character's Unicode case fold may map a non-ASCII glyph (long s) to s.
+                if(Character.toLowerCase((char)c)=='s') expected=5;
+                check(shortcut((char)c)==expected,"shortcut "+c);
+            }
+        } else if (args[0].equals("touch")) {
+            check(!row.touchEvent(new TouchEvent(TouchEvent.UP,10,10)),"unarmed release");
+            check(!row.touchEvent(new TouchEvent(TouchEvent.DOWN,-1,10)),"outside down");
+            check(row.touchEvent(new TouchEvent(TouchEvent.DOWN,10,10)),"inside down");
+            check(row.isFocus(),"touch focuses");
+            check(row.touchEvent(new TouchEvent(TouchEvent.UP,10,10)),"inside up");
+            check(fired[0]==1,"one tap opens once");
+            row.touchEvent(new TouchEvent(TouchEvent.DOWN,10,10));
+            row.touchEvent(new TouchEvent(TouchEvent.MOVE,10,row.getHeight()));
+            row.touchEvent(new TouchEvent(TouchEvent.UP,10,10));
+            check(fired[0]==1,"drag out and back cancels");
+            row.touchEvent(new TouchEvent(TouchEvent.DOWN,10,10));row.onUnfocus();
+            row.touchEvent(new TouchEvent(TouchEvent.UP,10,10));
+            check(fired[0]==1,"focus loss cancels");
+            row.touchEvent(new TouchEvent(TouchEvent.DOWN,479,row.getHeight()-1));
+            row.touchEvent(new TouchEvent(TouchEvent.UP,480,row.getHeight()-1));
+            check(fired[0]==1,"right edge excluded");
+        } else if (args[0].equals("activation")) {
+            check(row.navigationClick(0,0),"trackpad consumed");
+            check(row.keyChar('\n',0,0),"Enter consumed");
+            check(row.keyChar(' ',0,0),"Space consumed");
+            check(!row.keyChar('x',0,0),"other keys delegated");
+            check(fired[0]==3,"exactly three activations");
+        } else if (args[0].equals("layout")) {
+            int height=0;
+            int[] bands={28,18,22,18};
+            for(int i=0;i<bands.length;i++) {
+                Band b=new Band("Title","Status",bands[i]);b.layout(480,640);
+                height+=b.getHeight();check(b.getWidth()==480,"band width");
+            }
+            height+=5*row.getHeight();
+            check(row.getHeight()>=64,"touch target");
+            check(height+40<=640,"portrait budget with 40px native chrome: "+height);
+            row.layout(320,640);check(row.getWidth()==320,"narrow width");
+        } else throw new AssertionError("unknown mode");
+        System.out.println(args[0]+": "+count+" assertions passed (host doubles only)");
+    }
+}

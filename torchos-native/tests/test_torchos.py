@@ -1,0 +1,156 @@
+"""Source/config checks plus actual Java fragments run against host-only UI doubles."""
+import os
+from pathlib import Path
+import re
+import subprocess
+import unittest
+import xml.etree.ElementTree as ET
+from html.parser import HTMLParser
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = (ROOT / 'src/TorchOS.java').read_text()
+HTML = (ROOT / 'preview/index.html').read_text()
+BUILD = ROOT / 'build/host-tests'
+JDK = Path(os.environ.get('JDK8_HOME', '/home/SD/BlackBerryBridge/toolchains/jdk8'))
+
+
+def fragment(marker):
+    start = SRC.index(marker)
+    opening = SRC.index('{', start)
+    depth = 1
+    end = opening + 1
+    while depth:
+        depth += (SRC[end] == '{') - (SRC[end] == '}')
+        end += 1
+    return SRC[start:end]
+
+
+class HostBehavior(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        BUILD.mkdir(parents=True, exist_ok=True)
+        harness = (ROOT / 'tests/HostHarness.java.in').read_text()
+        for name, marker in [('SHORTCUT', 'static int shortcut('),
+                             ('BAND', 'private static final class Band'),
+                             ('ROW', 'private static final class Row')]:
+            harness = harness.replace('@@' + name + '@@', fragment(marker))
+        (BUILD / 'HostHarness.java').write_text(harness)
+        subprocess.run([str(JDK / 'bin/javac'), '-d', str(BUILD),
+                        str(BUILD / 'HostHarness.java')], check=True)
+
+    def run_mode(self, mode):
+        result = subprocess.run([str(JDK / 'bin/java'), '-cp', str(BUILD),
+                                 'HostHarness', mode], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        print(result.stdout.strip())
+
+    def test_all_character_shortcuts(self):
+        self.run_mode('shortcuts')
+
+    def test_touch_boundaries_and_cancel(self):
+        self.run_mode('touch')
+
+    def test_trackpad_enter_space_activation(self):
+        self.run_mode('activation')
+
+    def test_portrait_layout_budget(self):
+        self.run_mode('layout')
+
+
+class Contracts(unittest.TestCase):
+    def test_native_entry_and_five_home_rows(self):
+        self.assertIn('extends UiApplication', SRC)
+        self.assertIn('extends MainScreen', SRC)
+        self.assertIn('enterEventDispatcher()', SRC)
+        titles = re.findall(r'"([^\"]+)"', re.search(r'TITLES = \{(.*?)\};', SRC, re.S)[1])
+        self.assertEqual(titles, ['Devices', 'Camera', 'Archives', 'Network', 'Notes & Tasks'])
+        self.assertIn('rows[0].setFocus()', SRC)
+        self.assertIn('new Row[5]', SRC)
+
+    def test_every_external_item_disconnected(self):
+        items = ['S25', 'Steam Deck', 'MASTER-PC', 'CamDoor', 'Xiaomi C301',
+                 'EchoVault', 'Tahani family memories', 'Abu Jamal Wi-Fi', 'VPN health']
+        for item in items:
+            self.assertIn(item + r'\nNot connected', SRC)
+        self.assertNotRegex(SRC, r'\b\d{1,3}%')
+
+    def test_no_network_storage_or_security_bypass_apis(self):
+        imports = re.findall(r'^import (.*);', SRC, re.M)
+        self.assertTrue(all(i.startswith(('java.util.Date', 'net.rim.device.api.ui.',
+                                        'net.rim.device.api.i18n.SimpleDateFormat')) for i in imports))
+        for forbidden in ['Connector', 'HttpConnection', 'BrowserField', 'Socket',
+                          'PersistentStore', 'RecordStore', 'FileConnection',
+                          'ApplicationPermissions', 'Runtime.getRuntime', 'https://', 'http://']:
+            self.assertNotIn(forbidden, SRC)
+
+    def test_session_only_notes_and_task_state(self):
+        self.assertIn('new EditField("Draft: ", note, 512', SRC)
+        self.assertIn('note = draft.getText()', SRC)
+        self.assertIn('tasks[i] = checks[i].getChecked()', SRC)
+        self.assertIn('new boolean[3]', SRC)
+        self.assertIn('Lost on app exit', SRC)
+
+    def test_settings_back_and_clock_lifecycle(self):
+        self.assertIn('new MenuItem("Settings / About"', SRC)
+        self.assertIn('new SimpleDateFormat("EEE dd MMM  HH:mm").format(new Date())', SRC)
+        self.assertIn('30000, true', SRC)
+        self.assertIn('cancelInvokeLater(clockEvent)', SRC)
+        self.assertEqual(SRC.count('popScreen(this)'), 2)
+        self.assertIn('System.exit(0)', SRC)
+
+    def test_packaging_identity(self):
+        alx = ET.parse(ROOT / 'TorchOS.alx')
+        app = alx.find('application')
+        self.assertEqual(app.attrib['id'], 'TorchOS')
+        self.assertEqual(app.findtext('version'), '0.1.0')
+        self.assertEqual(app.findtext('fileset/directory'), 'build')
+        self.assertEqual(app.findtext('fileset/files/file'), 'TorchOS.cod')
+        rapc = (ROOT / 'TorchOS.rapc').read_text()
+        self.assertIn('MicroEdition-Profile: MIDP-2.0', rapc)
+        self.assertIn('MicroEdition-Configuration: CLDC-1.1', rapc)
+        self.assertIn('MIDlet-1: TorchOS,,TorchOS', rapc)
+        self.assertIn('MIDlet-Version: 0.1.0', rapc)
+        self.assertNotIn('S25Hub', rapc)
+
+    def test_build_uses_real_tools_and_local_outputs(self):
+        script = (ROOT / 'build.sh').read_text()
+        self.assertIn('-jar "$JDE_HOME/rapc.jar"', script)
+        self.assertIn('import=$JDE_HOME/net_rim_api.jar', script)
+        self.assertIn('"$ROOT/src/TorchOS.java"', script)
+        self.assertIn('cd "$ROOT/build"', script)
+        self.assertIn('export TMPDIR="$ROOT/build/tmp"', script)
+        self.assertIn('set -euo pipefail', script)
+        self.assertNotRegex(script, r'\b(?:curl|wget|sudo|bjavaloader|javaloader|usb|push)\b')
+        self.assertNotIn('-nopreverify', script)
+        subprocess.run(['bash', '-n', str(ROOT / 'build.sh')], check=True)
+
+    def test_source_trackable_artifacts_ignored(self):
+        result = subprocess.run(['git', 'check-ignore', '--no-index', str(ROOT / 'src/TorchOS.java')],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        result = subprocess.run(['git', 'check-ignore', '--no-index', str(ROOT / 'build/TorchOS.cod')],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_preview_is_offline_and_labeled(self):
+        class Inspect(HTMLParser):
+            def __init__(self):
+                super().__init__(); self.external = []; self.home_buttons = 0
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                for name in ['src', 'href', 'action']:
+                    if name in attrs:
+                        self.external.append(attrs[name])
+                if tag == 'button' and attrs.get('data-page') in ['0', '1', '2', '3', '4']:
+                    self.home_buttons += 1
+        parser = Inspect(); parser.feed(HTML)
+        self.assertEqual(parser.external, [])
+        self.assertEqual(parser.home_buttons, 5)
+        self.assertIn("connect-src 'none'", HTML)
+        self.assertIn('width:480px;height:640px', HTML)
+        self.assertIn('this is not on-device code', HTML)
+        self.assertNotRegex(HTML, r'\b(?:fetch|XMLHttpRequest|WebSocket|sendBeacon)\s*\(')
+
+
+if __name__ == '__main__':
+    unittest.main(verbosity=2)
