@@ -40,7 +40,7 @@ int hal_init(void) {
         bss_start < elf_start || bss_start >= bss_end || bss_end > elf_end ||
         stack_low < bss_end || stack_low >= stack_high || stack_high > elf_end) return 0;
     if (d.uart_address < 0x08000000u || d.uart_address >= 0x10000000u ||
-        d.uart_size < 0x1000u ||
+        d.uart_size < 0x1000u || d.uart_size > 0x08000000u ||
         d.uart_address > 0x10000000u - d.uart_size) return 0;
     uart_base = d.uart_address;
     port.ctx = &uart_base;
