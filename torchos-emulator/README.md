@@ -1,4 +1,4 @@
-# TorchOS CP006.2 — Independent ARM Research Monitor
+# TorchOS CP006.3 — Independent ARM Research Monitor
 
 **Status: off-device QEMU prototype, not a BlackBerry Torch 9810 image.**
 
@@ -37,11 +37,19 @@ The bounded `tools/fdt_inventory.py` parser validates the standard FDT header, s
 
 This inspection happens **outside the booting ARM guest**. The guest still uses a QEMU-specific PL011 address. Guest-side DTB discovery and driver selection are a **separate future checkpoint**; no retail Torch 9810 board support has been demonstrated. The generated DTB, virtual RAM, and UART addresses must never be treated as real-phone hardware specifications.
 
+## CP006.3: guest-side virtual hardware discovery
+
+The freestanding ARM guest now validates QEMU's **Flattened Device Tree** itself before accessing UART registers. Per the official [QEMU ARM virt bare-metal boot documentation](https://www.qemu.org/docs/master/system/arm/virt), the ELF boot's DTB resides at the start of virtual RAM (`0x40000000`); the RAM-base assumption is **QEMU-specific**, not a BlackBerry address.
+
+A bounded, no-libc C parser validates header limits, structure/string offsets, node depths, root 2/2 address-size cells, one enabled root-level `arm,pl011` UART node and a virtual RAM node. The PL011 register base is read from the validated DTB, and MMIO is enabled **only after** validation succeeds. Malformed or missing device information fails closed before the monitor prints anything; no fallback to a fixed UART address exists.
+
+The C parser is also compiled and tested on the host with malformed/synthetic DTBs and an actual QEMU-generated virtual DTB. Those host tests complement—not replace—real QEMU ELF cold-boot tests. Current virtual memory, UART, and CPU values must not be treated as evidence of BlackBerry hardware support. This remains an incomplete research monitor, not a production operating system.
+
 ### Safety and hardware limits
 
 - **Never flash or install** the produced ELF, object files, or build outputs on any BlackBerry.
 - QEMU **virt** is not a Torch 9810 hardware emulator. The emulator's Cortex-A15 CPU is not evidence for the Torch's exact CPU variant, despite both being 32-bit ARM families.
-- ELF location `0x40100000` is deliberately chosen for QEMU virt RAM, away from the guest device tree. PL011 serial address `0x09000000` is an emulator-specific implementation assumption and must not be used for a physical handset.
+- ELF location `0x40100000` is deliberately chosen for QEMU virt RAM, away from the guest device tree. The virtual PL011 serial address is discovered from a validated QEMU DTB; the **allowed QEMU-only MMIO range** and initial DTB RAM location remain hardcoded laboratory safeguards. Neither may be used for a physical handset.
 - Any kernel/loader, recovery method, boot chain, display, touch, QWERTY, trackpad, NAND/eMMC and power support on the **retail Torch 9810** remain **unverified**.
 - The original BlackBerry OS7 Java TorchOS app remains separate and unchanged.
 
