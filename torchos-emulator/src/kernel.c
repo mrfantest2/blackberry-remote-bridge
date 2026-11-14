@@ -6,18 +6,15 @@
  * QEMU virt's PL011 UART base is a version-specific test assumption;
  * a real hardware target must discover its devices and use proper drivers.
  */
-#include <stdint.h>
-
-#define UART_DR  (*(volatile uint32_t *)(uintptr_t)0x09000000u)
-#define UART_FR  (*(volatile uint32_t *)(uintptr_t)0x09000018u)
-#define UART_TXFF (1u << 5)
-#define UART_RXFE (1u << 4)
+#include "hal.h"
 #define INPUT_CAPACITY 64u
 #define HISTORY_CAPACITY 8u
 #define HISTORY_MASK (HISTORY_CAPACITY - 1u)
+#define NOTE_CAPACITY 49u
 
 static char input[INPUT_CAPACITY];
 static char history[HISTORY_CAPACITY][INPUT_CAPACITY];
+static char volatile_note[NOTE_CAPACITY];
 static unsigned int input_length;
 static unsigned int history_cursor;
 static unsigned int history_count;
@@ -25,11 +22,9 @@ static unsigned int swallow_line_feed;
 
 static void uart_putc(char ch) {
     if (ch == '\n') {
-        while ((UART_FR & UART_TXFF) != 0u) { }
-        UART_DR = '\r';
+        hal_uart_write('\r');
     }
-    while ((UART_FR & UART_TXFF) != 0u) { }
-    UART_DR = (uint32_t)(unsigned char)ch;
+    hal_uart_write((unsigned char)ch);
 }
 
 static void uart_puts(const char *s) {
@@ -39,10 +34,7 @@ static void uart_puts(const char *s) {
 }
 
 static int uart_read(void) {
-    if ((UART_FR & UART_RXFE) != 0u) {
-        return -1;
-    }
-    return (int)(UART_DR & 0xffu);
+    return hal_uart_read();
 }
 
 static int same(const char *a, const char *b) {
@@ -54,6 +46,35 @@ static int same(const char *a, const char *b) {
         ++b;
     }
     return (*a == '\0' && *b == '\0');
+}
+
+static int starts_with(const char *text, const char *prefix) {
+    while (*prefix != '\0') {
+        if (*text++ != *prefix++) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static void set_note(const char *value) {
+    unsigned int n = 0u;
+    if (*value == '\0') {
+        uart_puts("Note rejected: empty value.\n");
+        return;
+    }
+    while (value[n] != '\0') {
+        ++n;
+        if (n >= NOTE_CAPACITY) {
+            uart_puts("Note rejected: exceeds 48 bytes; previous note preserved.\n");
+            return;
+        }
+    }
+    for (n = 0u; value[n] != '\0'; ++n) {
+        volatile_note[n] = value[n];
+    }
+    volatile_note[n] = '\0';
+    uart_puts("Note saved in volatile RAM only.\n");
 }
 
 static void remember(const char *cmd) {
@@ -87,10 +108,12 @@ static void execute_command(const char *cmd) {
     if (same(cmd, "help")) {
         uart_puts("Available: help about status clear history notes files\n");
     } else if (same(cmd, "about")) {
-        uart_puts("TorchOS CP005: independent ARMv7 QEMU research monitor.\n");
+        uart_puts("TorchOS CP006: independent ARMv7 QEMU research monitor.\n");
         uart_puts("Not BlackBerry firmware. No Linux, network, or device access.\n");
     } else if (same(cmd, "status")) {
-        uart_puts("Machine: QEMU virt ARMv7 (simulated)\n");
+        uart_puts("Machine: ");
+        uart_puts(hal_machine_label());
+        uart_putc('\n');
         uart_puts("Console: virtual PL011 UART\n");
         uart_puts("BlackBerry hardware: NOT CONNECTED\n");
         uart_puts("Storage, Wi-Fi, touchscreen and power: NOT IMPLEMENTED\n");
@@ -99,7 +122,20 @@ static void execute_command(const char *cmd) {
     } else if (same(cmd, "history")) {
         print_history();
     } else if (same(cmd, "notes")) {
-        uart_puts("Notes: unavailable in CP005. No persistence enabled.\n");
+        uart_puts("Notes: RAM-only. Use notes set <text>, notes show, notes clear.\n");
+    } else if (same(cmd, "notes show")) {
+        if (volatile_note[0] == '\0') {
+            uart_puts("No volatile note saved.\n");
+        } else {
+            uart_puts("Volatile note: ");
+            uart_puts(volatile_note);
+            uart_putc('\n');
+        }
+    } else if (same(cmd, "notes clear")) {
+        volatile_note[0] = '\0';
+        uart_puts("Volatile note cleared (RAM only).\n");
+    } else if (starts_with(cmd, "notes set ")) {
+        set_note(cmd + 10);
     } else if (same(cmd, "files")) {
         uart_puts("Files: no filesystem mounted. No device storage access.\n");
     } else {
