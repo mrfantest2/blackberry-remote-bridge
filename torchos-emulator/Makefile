@@ -26,12 +26,12 @@ $(OUT)/torchos.elf: $(OBJS) $(ROOT)/linker.ld
 inspect: all
 	$(READELF) -h $(OUT)/torchos.elf
 run: all
-	$(QEMU) -machine virt -cpu cortex-a15 -m 128M -display none \
+	$(QEMU) -machine virt-8.2 -cpu cortex-a15 -m 128M -display none \
 	  -monitor none -serial stdio -nic none -no-reboot -kernel $(OUT)/torchos.elf
 test: all
 	python3 -m unittest discover -s $(ROOT)/tests -p 'test_*.py' -v
 inspect-fdt: | $(OUT)
-	$(QEMU) -machine virt,dumpdtb=$(OUT)/virt.dtb -cpu cortex-a15 -m 128M \
+	$(QEMU) -machine virt-8.2,dumpdtb=$(OUT)/virt.dtb -cpu cortex-a15 -m 128M \
 	  -display none -monitor none -serial none -nic none
 	python3 $(ROOT)/tools/fdt_inventory.py $(OUT)/virt.dtb
 clean:
