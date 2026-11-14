@@ -11,6 +11,7 @@ import tempfile
 import time
 import unittest
 from test_fdt_inventory import fixture
+from fdt_fault_cases import bad_cases
 
 ROOT = Path(__file__).resolve().parents[1]
 ELF = ROOT / "build" / "torchos.elf"
@@ -193,6 +194,17 @@ class ActualGuestFaults(unittest.TestCase):
         raw = b"\0\0\0\0" + fixture()[4:]
         self.boot(raw, False)
 
+
+# Generate individual named unittest methods so GitHub Actions reports
+# exact case counts, not a single passing outer loop or silent skips.
+def _make_negative_case(image):
+    def test(self):
+        self.boot(image, False)
+    return test
+
+for _case_name, _image in sorted(bad_cases().items()):
+    setattr(ActualGuestFaults, "test_fault_" + _case_name,
+            _make_negative_case(_image))
 
 if __name__ == "__main__":
     unittest.main()
