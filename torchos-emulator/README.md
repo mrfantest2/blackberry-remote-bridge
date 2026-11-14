@@ -1,4 +1,4 @@
-# TorchOS CP006 — Independent ARM Research Monitor
+# TorchOS CP006.2 — Independent ARM Research Monitor
 
 **Status: off-device QEMU prototype, not a BlackBerry Torch 9810 image.**
 
@@ -24,11 +24,18 @@ GitHub Actions installs the compiler/emulator in a disposable GitHub-hosted runn
 ```sh
 make -C torchos-emulator all
 make -C torchos-emulator inspect
+make -C torchos-emulator inspect-fdt  # QEMU-generated virtual DTB only
 make -C torchos-emulator test
 make -C torchos-emulator run
 ```
 
 Boot console: `torch> `. Commands: `help`, `about`, `status`, `clear`, `history`, `notes`, `files`. CP006 adds bounded, **volatile RAM-only** `notes set <text>`, `notes show`, and `notes clear`. Notes vanish when QEMU restarts. `files` reports unsupported storage; diagnostics identify virtual rather than BlackBerry hardware.
+
+## CP006.2: host-side QEMU device-tree inventory
+
+The bounded `tools/fdt_inventory.py` parser validates the standard FDT header, section limits, node nesting, property offsets, enabled `arm,pl011` UART registers and the virtual memory node. The GitHub-hosted test generates a new device tree from **QEMU** using `-machine virt,dumpdtb=...`, checks that its PL011 address matches the current QEMU-only UART backend, and rejects malformed device-tree blobs.
+
+This inspection happens **outside the booting ARM guest**. The guest still uses a QEMU-specific PL011 address. Guest-side DTB discovery and driver selection are a **separate future checkpoint**; no retail Torch 9810 board support has been demonstrated. The generated DTB, virtual RAM, and UART addresses must never be treated as real-phone hardware specifications.
 
 ### Safety and hardware limits
 
