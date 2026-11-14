@@ -1,5 +1,6 @@
 /* CP006.6: ARMv7-A exception vector foundation, QEMU virt-8.2 only.
- * IRQ/FIQ remain masked. No GIC, device IRQ routing or physical support.
+ * Normal boot IRQ/FIQ remain masked. Test-only GICv2 probe explicitly
+ * unmasks IRQ solely after GDB redirects guest PC; no physical support.
  */
 .syntax unified
 .cpu cortex-a15
