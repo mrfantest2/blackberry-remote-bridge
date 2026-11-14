@@ -13,6 +13,10 @@ volatile uint32_t cp066_vbar_readback;
 volatile uint32_t cp066_exception_kind;
 volatile uint32_t cp066_saved_lr;
 volatile uint32_t cp066_saved_spsr;
+/* Read-only telemetry populated by isolated GICv2 test probe only. */
+volatile uint32_t cp066_gic_dist_readback;
+volatile uint32_t cp066_gic_cpu_readback;
+volatile uint32_t cp066_gic_pmr_readback;
 static void halt_with(uint32_t phase) __attribute__((noreturn));
 static void halt_with(uint32_t phase) {
     cp064_boot_phase = phase;
