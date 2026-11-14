@@ -21,5 +21,9 @@ extern volatile uint32_t cp066_vbar_readback;
 extern volatile uint32_t cp066_exception_kind;
 extern volatile uint32_t cp066_saved_lr;
 extern volatile uint32_t cp066_saved_spsr;
+/* QEMU GICv2 debug-only probe; not accessed on normal boot. */
+extern volatile uint32_t cp066_gic_dist_readback;
+extern volatile uint32_t cp066_gic_cpu_readback;
+extern volatile uint32_t cp066_gic_pmr_readback;
 void cp064_halt(void) __attribute__((noreturn));
 #endif
