@@ -3,7 +3,8 @@ name: TorchOS CP005 ARM QEMU Boot
 on:
   push:
     branches:
-      - feature/torchos-cp005-qemu-arm-boot-20261114
+      - feat/torchos-native-shell-20261114
+      - 'feature/torchos-*'
     paths:
       - '.github/workflows/torchos-emulator.yml'
       - 'torchos-emulator/**'
