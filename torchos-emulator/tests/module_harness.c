@@ -101,7 +101,7 @@ static int uart_test(void) {
     mock.forever_busy=1u;
     CHECK(!uart_poll_send(&bus,(uint8_t)'C',7u));
     CHECK(mock.reads==7u && mock.writes==0u);
-    mock.forever_busy=0u; mock.reads=0u;
+    mock.forever_busy=0u; mock.busy_reads=0u; mock.reads=0u;
     mock.rx_empty=1u;
     CHECK(uart_poll_receive(&bus)==-1);
     CHECK(mock.reads==1u);
