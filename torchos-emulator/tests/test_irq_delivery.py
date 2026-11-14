@@ -1,7 +1,7 @@
 """CP006.6 experimental actual QEMU GICv2 software-generated interrupt.
 
-The host test programs a disposable QEMU 8.2.2 virt-8.2 GICv2 via the
-emulator's GDB memory protocol, then unmasks IRQ in CPU CPSR. The *actual*
+The test redirects QEMU guest CPU PC through GDB into an isolated
+ARM-only probe which programs QEMU virt-8.2 GICv2 and unmasks CPU IRQ. The *actual*
 virtual ARM core must take the IRQ and enter the installed vector.
 This does NOT implement a reusable in-guest GIC driver or touch real hardware.
 """
@@ -24,6 +24,9 @@ class QemuGicV2GuestIRQ(unittest.TestCase):
         cls.syms = symbols()
         for name in ("cp066_vector_table", "cp066_exception_kind",
                      "cp066_saved_lr", "cp066_saved_spsr",
+                     "cp066_probe_gicv2_sgi0",
+                     "cp066_gic_dist_readback", "cp066_gic_cpu_readback",
+                     "cp066_gic_pmr_readback",
                      "cp064_boot_phase", "cp064_halt",
                      "cp065_command_dispatch_count"):
             if name not in cls.syms:
@@ -62,25 +65,15 @@ class QemuGicV2GuestIRQ(unittest.TestCase):
                 self.assertEqual(phase, READY)
                 self.assertEqual(qmp.word(self.syms["cp066_exception_kind"]), 0)
                 qmp.hmp("stop")
-                # QEMU virt-8.2 GICv2 maps its distributor 0x08000000
-                # and CPU interface 0x08010000 (QEMU v8.2.2 hw/arm/virt.c).
-                # SGI0 is enabled in distributor and targeted to self via
-                # the architected GICD_SGIR target filter 0b10.
+                # QEMU virt-8.2 GICv2 distributor/CPU addresses are
+                # restricted to the lab-only ARM probe in startup.S.
+                # SGI0 is enabled and targeted to self in the guest-only
+                # probe (normal kernel and IRQ mask unchanged).
                 gdb = subprocess.run([
                     "gdb-multiarch", "-q", "--batch",
                     "-ex", "set architecture arm",
                     "-ex", f"target remote {gdb_sock}",
-                    "-ex", "set {unsigned int}0x08000000 = 1",
-                    "-ex", "set {unsigned int}0x08010004 = 255",
-                    "-ex", "set {unsigned int}0x08010000 = 1",
-                    "-ex", "set {unsigned int}0x08000100 = 1",
-                    "-ex", "set {unsigned int}0x08000f00 = 0x02000000",
-                    "-ex", "set $cpsr = $cpsr & ~0x80",
-                    "-ex", "info registers cpsr",
-                    "-ex", "x/1wx 0x08000000",
-                    "-ex", "x/1wx 0x08010000",
-                    "-ex", "x/1wx 0x08010004",
-                    "-ex", "x/1wx 0x08000100",
+                    "-ex", f"set $pc = 0x{self.syms['cp066_probe_gicv2_sgi0']:x}",
                     "-ex", "detach",
                 ], capture_output=True, text=True, timeout=12)
                 self.assertEqual(gdb.returncode, 0,
@@ -97,7 +90,7 @@ class QemuGicV2GuestIRQ(unittest.TestCase):
                         break
                     time.sleep(0.03)
                 self.assertEqual(phase, EXCEPTION,
-                                 f"actual IRQ not observed: phase {phase!r}; GDB={gdb.stdout!r}; registers={qmp.registers()!r}")
+                                 f"actual IRQ not observed: phase {phase!r}; dist={qmp.word(self.syms['cp066_gic_dist_readback']):#x}; cpu={qmp.word(self.syms['cp066_gic_cpu_readback']):#x}; pmr={qmp.word(self.syms['cp066_gic_pmr_readback']):#x}; GDB={gdb.stdout!r}; registers={qmp.registers()!r}")
                 qmp.hmp("stop")
                 self.assertEqual(qmp.word(self.syms["cp066_exception_kind"]), 5,
                                  "CPU took wrong exception vector, not IRQ")
