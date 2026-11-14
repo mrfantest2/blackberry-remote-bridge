@@ -76,6 +76,11 @@ class QemuGicV2GuestIRQ(unittest.TestCase):
                     "-ex", "set {unsigned int}0x08000100 = 1",
                     "-ex", "set {unsigned int}0x08000f00 = 0x02000000",
                     "-ex", "set $cpsr = $cpsr & ~0x80",
+                    "-ex", "info registers cpsr",
+                    "-ex", "x/1wx 0x08000000",
+                    "-ex", "x/1wx 0x08010000",
+                    "-ex", "x/1wx 0x08010004",
+                    "-ex", "x/1wx 0x08000100",
                     "-ex", "detach",
                 ], capture_output=True, text=True, timeout=12)
                 self.assertEqual(gdb.returncode, 0,
@@ -92,7 +97,7 @@ class QemuGicV2GuestIRQ(unittest.TestCase):
                         break
                     time.sleep(0.03)
                 self.assertEqual(phase, EXCEPTION,
-                                 f"actual IRQ not observed: phase {phase!r}")
+                                 f"actual IRQ not observed: phase {phase!r}; GDB={gdb.stdout!r}; registers={qmp.registers()!r}")
                 qmp.hmp("stop")
                 self.assertEqual(qmp.word(self.syms["cp066_exception_kind"]), 5,
                                  "CPU took wrong exception vector, not IRQ")
