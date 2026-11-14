@@ -4,6 +4,8 @@
 
 This directory contains an original minimal **freestanding ARMv7 boot image**, written in assembly and C. It boots into an interactive UART console on QEMU's generic **ARM virt / Cortex-A15** machine. It does **not** execute BlackBerry OS 7 or require any BlackBerry proprietary components.
 
+The QEMU launcher explicitly disables virtual networking with `-nic none`; this also avoids unnecessary guest NIC firmware dependencies in slim hosted runners.
+
 It is intentionally much smaller than a complete production OS: there is no kernel scheduler, MMU management, process isolation, filesystem, graphics/touch driver, battery driver, persistent notes, network or Linux userland. The local command interpreter accepts a small allowlist and does not execute host commands. It demonstrates an independently booting research monitor, not a finished OS.
 
 ## Prerequisites (off-device only)
