@@ -158,11 +158,11 @@ class ActualGuestFaults(unittest.TestCase):
                 if accepted:
                     self.assertGreater(read_count, 0)
                     self.assertGreater(write_count, 0)
-                    self.assertIn("PC=", regs)
+                    self.assertIn("R15=", regs)
                 else:
                     self.assertEqual(read_count, 0, "invalid DTB accessed MMIO")
                     self.assertEqual(write_count, 0, "invalid DTB transmitted")
-                    match = re.search(r"\bPC=([0-9a-fA-F]{8})", regs)
+                    match = re.search(r"\bR15=([0-9a-fA-F]{8})", regs)
                     self.assertIsNotNone(match, regs)
                     pc = int(match.group(1), 16)
                     self.assertIn(pc, (self.sym["cp064_halt"],
