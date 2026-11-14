@@ -167,3 +167,11 @@ its source/data were not edited. S25Hub, personal backups, production services
 and BlackBerry firmware were not modified. No device read/write, signing,
 installation, reboot, wipe or flash command was run. Publish scope is only the
 existing feature branch after this independent source acceptance.
+
+## Publication receipt
+
+Verified source checkpoint: `b162fe7b0adfb50cf9020d882bc959b072389fa6`.
+`git push origin HEAD:refs/heads/feat/torchos-native-shell-20261114` succeeded;
+`git ls-remote` confirmed that exact SHA on the existing GitHub feature branch.
+The feature worktree was clean after publication. This subsequent documentation
+receipt does not change the tested application, tests, preview or artifacts.

@@ -83,7 +83,7 @@ validation pattern without rewriting the UI or changing user data formats.
 - [x] Check preview at 480 x 640 and label synthetic vs browser vs physical QA.
 - [x] Write engineering/QA, roadmap and installation-readiness reports with
   exact results and unresolved physical/transport/signing gates.
-- [ ] Accept only verified changes, commit explicit source/docs paths and
+- [x] Accept only verified changes, commit explicit source/docs paths and
   publish only the existing feature branch; verify remote checkpoint.
 
 ## Independent acceptance status
@@ -97,4 +97,6 @@ handoff source. Final validation: 41 native + 9 companion + 7 S25Hub = 57 PASS;
 0 with No errors and three warnings; packaging checks PASS. Full reports and
 evidence are in the CP003 engineering QA and readiness documents. Source
 accepted for publication only on the named feature branch. Physical install
-remains HOLD. Commit/push is the remaining release-manager step.
+remains HOLD. Source checkpoint `b162fe7b0adfb50cf9020d882bc959b072389fa6`
+was committed and pushed; `git ls-remote` independently confirmed the same
+feature-branch SHA. This ledger update records the completed publication.
