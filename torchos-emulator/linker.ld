@@ -1,6 +1,7 @@
-/* QEMU virt ARM32, RAM 0x40000000..0x48000000, FDT at 0x40000000.
- * The reserved 1MiB FDT window is never used by this ELF or its stack.
- * NOT an image for any BlackBerry.
+/* QEMU virt ARM32 128MiB RAM at 0x40000000, DTB at 0x40000000.
+ * CP006.6 adds banked exception stacks but does not enable GIC IRQs.
+ * The first 1MiB remains reserved for the virtual device tree.
+ * NOT a BlackBerry image.
  */
 ENTRY(_start)
 SECTIONS {
@@ -17,6 +18,20 @@ SECTIONS {
         . = ALIGN(4);
         __bss_end = .;
     }
+    .exception_stacks (NOLOAD) : ALIGN(16) {
+        __und_stack_bottom = .;
+        . = . + 1024;
+        __und_stack_top = .;
+        __abt_stack_bottom = .;
+        . = . + 1024;
+        __abt_stack_top = .;
+        __irq_stack_bottom = .;
+        . = . + 1024;
+        __irq_stack_top = .;
+        __fiq_stack_bottom = .;
+        . = . + 1024;
+        __fiq_stack_top = .;
+    }
     .stack (NOLOAD) : ALIGN(16) {
         __stack_bottom = .;
         . = . + 16384;
@@ -25,5 +40,8 @@ SECTIONS {
     __image_end = .;
     ASSERT(__image_start >= 0x40100000, "ELF overlaps QEMU FDT reserve")
     ASSERT(__image_end <= 0x48000000, "ELF exceeds QEMU RAM")
+    ASSERT((cp066_vector_table & 31) == 0, "VBAR vector table not 32-byte aligned")
+    ASSERT(__und_stack_bottom >= __bss_end, "UND stack overlaps BSS")
+    ASSERT(__stack_bottom >= __fiq_stack_top, "SVC stack overlaps exception stacks")
     /DISCARD/ : { *(.comment) *(.note*) *(.eh_frame*) }
 }

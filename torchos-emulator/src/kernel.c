@@ -1,4 +1,6 @@
-/* CP006.4: QEMU virtual research monitor bootstrap, not BlackBerry firmware. */
+/* CP006.6: QEMU ARM exception vectors and original lightweight console.
+ * CPU IRQ/FIQ remain masked; no physical BlackBerry driver or GIC code.
+ */
 #include "hal.h"
 #include "console.h"
 #include "commands.h"
@@ -7,6 +9,10 @@
 volatile uint32_t cp064_boot_phase;
 volatile uint32_t cp064_mmio_reads;
 volatile uint32_t cp064_mmio_writes;
+volatile uint32_t cp066_vbar_readback;
+volatile uint32_t cp066_exception_kind;
+volatile uint32_t cp066_saved_lr;
+volatile uint32_t cp066_saved_spsr;
 static void halt_with(uint32_t phase) __attribute__((noreturn));
 static void halt_with(uint32_t phase) {
     cp064_boot_phase = phase;
