@@ -118,4 +118,40 @@ cp066_probe_svc:
 cp066_probe_undefined:
     .word 0xe7f000f0   /* A32 UDF #0 */
     b cp064_halt
+/* CP006.6 TEST-ONLY QEMU virt-8.2 GICv2 stimulus.
+ * Executed only by a hosted GDB PC redirection AFTER verified guest boot.
+ * Not called by normal kernel, serial console, or any BlackBerry app.
+ * QEMU virt.c: GIC distributor 0x08000000, CPU interface 0x08010000.
+ */
+.global cp066_probe_gicv2_sgi0
+cp066_probe_gicv2_sgi0:
+    ldr r0, =0x08000000
+    mov r1, #1
+    str r1, [r0]              /* GICD_CTLR enable */
+    ldr r3, [r0]
+    ldr r2, =cp066_gic_dist_readback
+    str r3, [r2]
+
+    ldr r0, =0x08010000
+    mov r1, #0xff
+    str r1, [r0, #4]          /* GICC_PMR allow priorities */
+    ldr r3, [r0, #4]
+    ldr r2, =cp066_gic_pmr_readback
+    str r3, [r2]
+    mov r1, #1
+    str r1, [r0]              /* GICC_CTLR enable */
+    ldr r3, [r0]
+    ldr r2, =cp066_gic_cpu_readback
+    str r3, [r2]
+
+    ldr r0, =0x08000100
+    mov r1, #1
+    str r1, [r0]              /* Enable SGI 0 on GICD */
+    ldr r0, =0x08000f00
+    ldr r1, =0x02000000
+    str r1, [r0]              /* SGI0, target filter: self */
+    cpsie i                   /* Test-only interrupt unmask */
+cp066_irq_test_pending:
+    b cp066_irq_test_pending
+
 .ltorg
