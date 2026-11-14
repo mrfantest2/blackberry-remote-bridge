@@ -44,15 +44,29 @@ An isolated GitHub-hosted workflow downloads official QEMU 8.2.2 release source,
 | TXFF forced in QEMU PL011 | PL011 source emits one injector marker; guest observes **65,536 MMIO reads**, **0 writes** | **PASS** |
 | Bounded guest failure | `BOOT_UART_FAILED` + named WFI/halt PC, deadline enforced | **PASS** |
 | No commands after failure | Guest dispatch telemetry is **0** | **PASS** |
-| Independent PR-head and post-merge CI | Lab branch **2/2 PASS**, original regression **52/52 PASS**; PR-head and post-merge pending | **PARTIAL** |
+| Independent PR-head and post-merge CI | PR-head and post-merge: **52/52 + 2/2 PASS**, zero failures/skips; source archive SHA-256 check PASS | **PASS** |
 | Physical Torch 9810 boot or recovery | No evidence generated; no physical work authorized | **BLOCKED / NO-GO** |
 
 Normal-case and forced-stall cases are separate named Python unittests. A missing tool, failed QEMU load, absent PL011 trace marker, missing guest symbols, wrong ARM phase, infinite polling or crash **fails** the job. No false skips.
 
-The original CP006.4 **52/52** hosted tests remain mandatory independently. The focused QEMU job has now passed **2/2**, for **54 successful tests** across the two separately executed suites. No skipped tests were reported in these runs; the final PR-head and post-merge checks remain acceptance gates.
+The original CP006.4 **52/52** hosted tests remain mandatory independently. The focused device-model job passes **2/2**; all **54/54 tests** passed both on the PR head and after merging, with **0 failures and 0 skips**.
 
 ## Physical-device limitations
 
 The emulator's Cortex-A15 virtual board, fixed 128 MiB memory, QEMU PL011, synthetic fault flag, GDB/QMP diagnostics and kernel are not a board-support package for the original BlackBerry Torch 9810. Its exact silicon, signed boot interface, full stock firmware rollback and peripherals remain unresolved as documented in [G0.4](TORCHOS_G04_9810_REGULATORY_VARIANTS_AND_RECOVERY_20261114.md).
 
 **No physical device, personal backup, BlackBerry firmware, OS 7 application, MASTER-PC or Steam Deck runner is involved.**
+
+## Final GitHub acceptance — verified
+
+- PR: [#14, merged](https://github.com/mrfantest2/blackberry-remote-bridge/pull/14).
+- Exact reviewed PR-head SHA: `83b1c6d9e2fd1f8698a23e3a3a5f80f9fd36686a`.
+- Accepted **code** merge SHA: `a1a848e08daaf7629e36c3516e190b57b0b46602`.
+- PR-head hosted regression: [52/52 PASS](https://github.com/mrfantest2/blackberry-remote-bridge/actions/runs/43646461169).
+- PR-head hosted instrumented PL011: [2/2 PASS](https://github.com/mrfantest2/blackberry-remote-bridge/actions/runs/43646461165).
+- Post-merge hosted regression on accepted merge SHA: [52/52 PASS](https://github.com/mrfantest2/blackberry-remote-bridge/actions/runs/43646885172).
+- Post-merge hosted instrumented PL011 on accepted merge SHA: [2/2 PASS](https://github.com/mrfantest2/blackberry-remote-bridge/actions/runs/43646885204); pinned source tarball checksum passed.
+- Post-merge normal-control guest: `BOOT_CONSOLE_READY`, MMIO reads **46,526**, writes **284**, commands **1**.
+- Post-merge forced-full guest: `BOOT_UART_FAILED`, exactly **65,536** MMIO reads, **0** writes, **0** command dispatches, named WFI halt observed.
+- **All results are QEMU-only.** A lab-instrumented PL011 register is not a normal upstream-QEMU FIFO overflow and does not establish physical BlackBerry compatibility.
+- This section was finalized in a **documentation-only follow-up commit** after the accepted code SHA had passed both suites; it does not change any executable code.
