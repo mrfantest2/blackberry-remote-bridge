@@ -1,5 +1,7 @@
 /* Local allowlist and RAM-only state. No PL011, OS, or host calls. */
 #include "commands.h"
+/* RAM-only command dispatch telemetry; no hardware or host dependencies. */
+volatile unsigned int cp065_command_dispatch_count;
 #define HISTORY_CAPACITY 8u
 #define INPUT_CAPACITY 64u
 #define NOTE_CAPACITY 49u
@@ -23,6 +25,7 @@ void commands_init(commands_emit_fn out, commands_label_fn machine) {
     emit = out;
     label = machine;
     cursor = count = 0u;
+    cp065_command_dispatch_count = 0u;
     note[0] = '\0';
     for (i=0u;i<HISTORY_CAPACITY;++i) history[i][0]='\0';
 }
@@ -56,6 +59,7 @@ static void set_note(const char *v) {
 }
 void commands_execute(const char *cmd) {
     if(!cmd || !*cmd) return;
+    ++cp065_command_dispatch_count;
     remember(cmd);
     if (same(cmd,"help")) puts_("Available: help about status clear history notes files\n");
     else if (same(cmd,"about")) {
