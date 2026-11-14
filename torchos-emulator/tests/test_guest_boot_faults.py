@@ -116,7 +116,13 @@ class ActualGuestFaults(unittest.TestCase):
                                     stderr=subprocess.PIPE)
             client = None
             try:
-                client = Qmp(sock)
+                try:
+                    client = Qmp(sock)
+                except (OSError, AssertionError) as exc:
+                    if proc.poll() is None:
+                        proc.terminate()
+                    out, err = proc.communicate(timeout=3)
+                    self.fail(f"QEMU/QMP initialization failed: {exc}; stdout={out!r}; stderr={err!r}; command={cmd!r}")
                 deadline = time.monotonic() + 3
                 phase = None
                 while time.monotonic() < deadline:
