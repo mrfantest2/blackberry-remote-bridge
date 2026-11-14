@@ -27,6 +27,7 @@ class QemuGicV2GuestIRQ(unittest.TestCase):
                      "cp066_probe_gicv2_sgi0",
                      "cp066_gic_dist_readback", "cp066_gic_cpu_readback",
                      "cp066_gic_pmr_readback",
+                     "__image_start", "__image_end",
                      "cp064_boot_phase", "cp064_halt",
                      "cp065_command_dispatch_count"):
             if name not in cls.syms:
@@ -94,6 +95,15 @@ class QemuGicV2GuestIRQ(unittest.TestCase):
                 qmp.hmp("stop")
                 self.assertEqual(qmp.word(self.syms["cp066_exception_kind"]), 5,
                                  "CPU took wrong exception vector, not IRQ")
+                self.assertEqual(qmp.word(self.syms["cp066_gic_dist_readback"]) & 1, 1,
+                                 "guest did not enable GIC distributor")
+                self.assertEqual(qmp.word(self.syms["cp066_gic_cpu_readback"]) & 1, 1,
+                                 "guest did not enable GIC CPU interface")
+                self.assertEqual(qmp.word(self.syms["cp066_gic_pmr_readback"]) & 0xff, 0xff,
+                                 "guest GIC priority mask not set")
+                exception_lr = qmp.word(self.syms["cp066_saved_lr"])
+                self.assertGreaterEqual(exception_lr, self.syms["__image_start"])
+                self.assertLess(exception_lr, self.syms["__image_end"] + 4)
                 saved_spsr = qmp.word(self.syms["cp066_saved_spsr"])
                 self.assertEqual(saved_spsr & 0x1f, 0x13)
                 self.assertEqual(saved_spsr & 0x80, 0,
