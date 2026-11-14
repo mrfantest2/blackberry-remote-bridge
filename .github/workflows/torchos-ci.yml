@@ -1,0 +1,96 @@
+name: TorchOS Host QA
+
+on:
+  push:
+    branches:
+      - main
+      - feat/torchos-native-shell-20261114
+    paths:
+      - '.github/workflows/torchos-ci.yml'
+      - 'torchos-native/**'
+      - 'tests/**'
+      - 'blackberry-s25-native/tests/**'
+  pull_request:
+    branches:
+      - main
+      - feat/torchos-native-shell-20261114
+    paths:
+      - '.github/workflows/torchos-ci.yml'
+      - 'torchos-native/**'
+      - 'tests/**'
+      - 'blackberry-s25-native/tests/**'
+  workflow_dispatch:
+
+# Only GitHub-hosted runners. Never attach a personal Steam Deck to
+# public pull-request workflows, and never deploy to the BlackBerry.
+permissions:
+  contents: read
+
+concurrency:
+  group: torchos-qa-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host-tests:
+    name: Offline QA (no device access)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout (read-only token)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Java 8 for Java ME host doubles
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      - name: Check runtime availability
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "JDK8_HOME=${JAVA_HOME}" >> "${GITHUB_ENV}"
+          python --version
+          java -version
+          javac -version
+          node --version
+          bash -n torchos-native/build.sh torchos-native/test.sh
+
+      - name: TorchOS native host and preview tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash torchos-native/test.sh
+
+      - name: Original companion protocol tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B -m unittest discover -s tests -q
+
+      - name: Original S25Hub contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B -m unittest discover -s blackberry-s25-native/tests -q
+
+      - name: Upload non-sensitive host-test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: torchos-host-test-log
+          path: torchos-native/build/tests.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+# This workflow does not compile a native BlackBerry COD: the authentic
+# proprietary JDE 7.0/WTK toolchain is present only on the authorized
+# Steam Deck and must not be embedded into a public repository or runner.
+# GitHub Actions is CI, not an autonomous source-code-writing AI agent.
