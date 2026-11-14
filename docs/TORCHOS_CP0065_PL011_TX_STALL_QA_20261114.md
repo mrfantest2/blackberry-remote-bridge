@@ -1,6 +1,8 @@
 # TorchOS CP006.5 — Isolated QEMU PL011 transmit-stall QA
 
 **Date:** 2026-11-14  
+**Initial hosted lab test:** [Run 43645910038 — 2/2 PASS](https://github.com/mrfantest2/blackberry-remote-bridge/actions/runs/43645910038)
+**Official QEMU source SHA256:** `847346c1b82c1a54b2c38f6edbd85549edeb17430b7d4d3da12620e2962bc4f3` (verified and now pinned in workflow).
 **Base development commit:** `b17f572c19bf54ca8df3a7805e272e3279467205`  
 **Feature branch:** `feature/torchos-cp0065-qemu-pl011-tx-stall-20261114`  
 **Issue:** [#11](https://github.com/mrfantest2/blackberry-remote-bridge/issues/11)  
@@ -37,17 +39,17 @@ An isolated GitHub-hosted workflow downloads official QEMU 8.2.2 release source,
 | Upstream source analysis | Tagged v8.2.2 `PL011_FLAG_TXFF` cleared, not set | **PASS** |
 | No modification to normal guest UART code | `hal_qemu_virt.c`, `uart_poll.c` and kernel untouched | **PASS (source diff)** |
 | Existing 52 regressions | Existing hosted ARM QEMU workflow unaffected by the counter | **PASS** |
-| Modified QEMU compiles | Dedicated hosted workflow produces `qemu-system-arm` | **PENDING** |
-| Normal model control | With injector disabled, real guest boots, sends UART text and handles `help` | **PENDING** |
-| TXFF forced in QEMU PL011 | Marker + real MMIO read count of **65,536**, zero MMIO writes | **PENDING** |
-| Bounded guest failure | `BOOT_UART_FAILED` and named WFI/halt PC, not a crash or timeout | **PENDING** |
-| No commands after failure | Guest dispatch telemetry is **zero** | **PENDING** |
-| Independent PR-head and post-merge CI | Both pass with exact head SHA and original development branch | **PENDING** |
+| Modified QEMU compiles | Dedicated hosted workflow built `qemu-system-arm` from the pinned QEMU 8.2.2 source | **PASS** |
+| Normal model control | Guest console-ready; 19,635 MMIO reads, 284 writes, 1 command | **PASS** |
+| TXFF forced in QEMU PL011 | PL011 source emits one injector marker; guest observes **65,536 MMIO reads**, **0 writes** | **PASS** |
+| Bounded guest failure | `BOOT_UART_FAILED` + named WFI/halt PC, deadline enforced | **PASS** |
+| No commands after failure | Guest dispatch telemetry is **0** | **PASS** |
+| Independent PR-head and post-merge CI | Lab branch **2/2 PASS**, original regression **52/52 PASS**; PR-head and post-merge pending | **PARTIAL** |
 | Physical Torch 9810 boot or recovery | No evidence generated; no physical work authorized | **BLOCKED / NO-GO** |
 
 Normal-case and forced-stall cases are separate named Python unittests. A missing tool, failed QEMU load, absent PL011 trace marker, missing guest symbols, wrong ARM phase, infinite polling or crash **fails** the job. No false skips.
 
-The original CP006.4 `52/52` tests remain mandatory independently; this focused new job adds **2** more integration tests if successful.
+The original CP006.4 **52/52** hosted tests remain mandatory independently. The focused QEMU job has now passed **2/2**, for **54 successful tests** across the two separately executed suites. No skipped tests were reported in these runs; the final PR-head and post-merge checks remain acceptance gates.
 
 ## Physical-device limitations
 
