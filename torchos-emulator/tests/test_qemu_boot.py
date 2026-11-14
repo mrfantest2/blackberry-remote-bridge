@@ -17,7 +17,7 @@ class ArmConsole:
             [
                 "qemu-system-arm", "-machine", "virt",
                 "-cpu", "cortex-a15", "-m", "128M",
-                "-nographic", "-monitor", "none",
+                "-display", "none", "-monitor", "none",
                 "-serial", "stdio", "-no-reboot", "-kernel", str(ELF),
             ],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -38,7 +38,7 @@ class ArmConsole:
             if ready:
                 chunk = os.read(self.proc.stdout.fileno(), 4096)
                 if not chunk:
-                    raise AssertionError("QEMU closed stdout")
+                    raise AssertionError(f"QEMU closed stdout (exit={self.proc.poll()}): {bytes(self.output)!r}")
                 self.output.extend(chunk)
         result = bytes(self.output[self.offset:])
         self.offset = len(self.output)
