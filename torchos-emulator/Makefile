@@ -26,11 +26,14 @@ $(OUT)/startup.o: $(ROOT)/src/startup.S | $(OUT)
 $(OUT)/kernel.o: $(ROOT)/src/kernel.c $(ROOT)/src/hal.h | $(OUT)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OUT)/hal_qemu_virt.o: $(ROOT)/src/hal_qemu_virt.c $(ROOT)/src/hal.h | $(OUT)
+$(OUT)/guest_fdt.o: $(ROOT)/src/guest_fdt.c $(ROOT)/src/guest_fdt.h | $(OUT)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OUT)/torchos.elf: $(OUT)/startup.o $(OUT)/kernel.o $(OUT)/hal_qemu_virt.o $(ROOT)/linker.ld
-	$(CC) $(LDFLAGS) $(OUT)/startup.o $(OUT)/kernel.o $(OUT)/hal_qemu_virt.o -o $@
+$(OUT)/hal_qemu_virt.o: $(ROOT)/src/hal_qemu_virt.c $(ROOT)/src/hal.h $(ROOT)/src/guest_fdt.h | $(OUT)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OUT)/torchos.elf: $(OUT)/startup.o $(OUT)/kernel.o $(OUT)/hal_qemu_virt.o $(OUT)/guest_fdt.o $(ROOT)/linker.ld
+	$(CC) $(LDFLAGS) $(OUT)/startup.o $(OUT)/kernel.o $(OUT)/hal_qemu_virt.o $(OUT)/guest_fdt.o -o $@
 	$(READELF) -h $@ | grep -Eq 'Machine:.*ARM'
 	@echo 'QEMU-only ARM ELF generated; NOT a BlackBerry firmware image.'
 
