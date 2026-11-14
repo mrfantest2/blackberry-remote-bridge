@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 import subprocess
 import unittest
+from unittest import mock
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 
@@ -11,7 +12,35 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = (ROOT / 'src/TorchOS.java').read_text()
 HTML = (ROOT / 'preview/index.html').read_text()
 BUILD = ROOT / 'build/host-tests'
-JDK = Path(os.environ.get('JDK8_HOME', '/home/SD/BlackBerryBridge/toolchains/jdk8'))
+
+
+def resolve_jdk():
+    """Honor explicit JDK 8 first, then CI's JAVA_HOME, then the Deck fallback."""
+    return Path(os.environ.get('JDK8_HOME') or os.environ.get('JAVA_HOME')
+                or '/home/SD/BlackBerryBridge/toolchains/jdk8')
+
+
+JDK = resolve_jdk()
+
+
+class JdkSelection(unittest.TestCase):
+    def test_explicit_jdk8_home_wins(self):
+        with mock.patch.dict(os.environ, {
+            'JDK8_HOME': '/tmp/jdk8-override', 'JAVA_HOME': '/tmp/java-home'
+        }):
+            self.assertEqual(resolve_jdk(), Path('/tmp/jdk8-override'))
+
+    def test_java_home_fallback(self):
+        with mock.patch.dict(os.environ, {
+            'JDK8_HOME': '', 'JAVA_HOME': '/tmp/java-home'
+        }):
+            self.assertEqual(resolve_jdk(), Path('/tmp/java-home'))
+
+    def test_default_when_neither_set(self):
+        with mock.patch.dict(os.environ, {
+            'JDK8_HOME': '', 'JAVA_HOME': ''
+        }):
+            self.assertEqual(resolve_jdk(), Path('/home/SD/BlackBerryBridge/toolchains/jdk8'))
 
 
 def fragment(marker):

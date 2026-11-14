@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/torchos-ci.yml'
       - 'torchos-native/**'
+      - 'scripts/test-all.sh'
       - 'tests/**'
       - 'blackberry-s25-native/tests/**'
   pull_request:
@@ -17,6 +18,7 @@ on:
     paths:
       - '.github/workflows/torchos-ci.yml'
       - 'torchos-native/**'
+      - 'scripts/test-all.sh'
       - 'tests/**'
       - 'blackberry-s25-native/tests/**'
   workflow_dispatch:
@@ -56,30 +58,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "JDK8_HOME=${JAVA_HOME}" >> "${GITHUB_ENV}"
           python --version
           java -version
           javac -version
           node --version
-          bash -n torchos-native/build.sh torchos-native/test.sh
+          bash -n torchos-native/build.sh torchos-native/test.sh scripts/test-all.sh
 
-      - name: TorchOS native host and preview tests
+      - name: All offline TorchOS QA suites
         shell: bash
         run: |
           set -euo pipefail
-          bash torchos-native/test.sh
-
-      - name: Original companion protocol tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 -B -m unittest discover -s tests -q
-
-      - name: Original S25Hub contract tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 -B -m unittest discover -s blackberry-s25-native/tests -q
+          bash scripts/test-all.sh
 
       - name: Record QA scope without consuming artifact quota
         if: success()

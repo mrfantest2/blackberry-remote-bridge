@@ -3,7 +3,7 @@
 set -euo pipefail
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 JDE_HOME=${JDE_HOME:-/home/SD/BlackBerryBridge/toolchains/blackberry-jde-7.0.0}
-JDK8_HOME=${JDK8_HOME:-/home/SD/BlackBerryBridge/toolchains/jdk8}
+JDK8_HOME=${JDK8_HOME:-${JAVA_HOME:-/home/SD/BlackBerryBridge/toolchains/jdk8}}
 WTK_HOME=${WTK_HOME:-/home/SD/BlackBerryBridge/toolchains/wtk252}
 mkdir -p "$ROOT/build/tmp"
 cd "$ROOT/build"
