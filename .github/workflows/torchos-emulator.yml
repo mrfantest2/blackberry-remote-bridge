@@ -1,4 +1,4 @@
-name: TorchOS CP005 ARM QEMU Boot
+name: TorchOS ARM QEMU Boot & FDT QA
 
 on:
   push:
@@ -53,15 +53,17 @@ jobs:
         run: |
           set -euo pipefail
           make -C torchos-emulator test
+          make -C torchos-emulator inspect-fdt
 
       - name: Report scope without artifact upload
         if: success()
         shell: bash
         run: |
           {
-            echo '## TorchOS CP005 — QEMU virtual ARM'
+            echo '## TorchOS CP006.2 — QEMU virtual ARM and FDT'
             echo 'Bare-metal ARM ELF compiled and cold-booted under QEMU virt.'
-            echo 'Interactive UART and local-command tests passed.'
+            echo 'Interactive UART, local-command and malformed-FDT tests passed.'
+            echo 'QEMU virt device-tree UART/RAM inventory validated on the host; no physical hardware detected.'
             echo 'This is **not** a retail BlackBerry Torch 9810 image or device proof.'
             echo 'No flash, driver, firmware, handset, secret or private runner was used.'
           } >> "$GITHUB_STEP_SUMMARY"
