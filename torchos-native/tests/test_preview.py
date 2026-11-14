@@ -26,5 +26,11 @@ class PreviewBehavior(unittest.TestCase):
     def test_preview_control_character_rejection_parity(self):
         self.run_harness('PreviewControlHarness.js', 'preview-control-test.js')
 
+    def test_preview_history_draft_preservation(self):
+        self.run_harness('PreviewHistoryHarness.js', 'preview-history-test.js')
+
+    def test_preview_rejected_submission_resets_browsing(self):
+        self.run_harness('PreviewRejectedHistoryHarness.js', 'preview-rejected-history-test.js')
+
 
 if __name__=='__main__':unittest.main(verbosity=2)

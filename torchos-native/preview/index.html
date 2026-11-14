@@ -76,7 +76,7 @@ const pages = [
 ];
 const el=id=>document.getElementById(id);
 const home=el('home'),detail=el('detail');
-let current=-1, stack=[], history=[], cursor=0;
+let current=-1, stack=[], history=[], cursor=0, commandDraft='';
 let output='TorchOS local terminal. Type help. Remote services: disconnected.\n';
 const noteState={draft:'',tasks:[false,false,false],labels:['','','']};
 function render(i){
@@ -92,6 +92,7 @@ function openPage(i){if(!Number.isInteger(i)||i<0||i>=pages.length)return;stack.
 function back(){if(current===6)saveNotes();const old=current;render(stack.length?stack.pop():-1);const focus=current===-1?(old<6?old:11):old;document.querySelector('[data-page="'+focus+'"]').focus();}
 function append(value){output=(output+value).slice(-4096);el('output').textContent=output;el('output').scrollTop=el('output').scrollHeight;}
 function execute(raw){
+ cursor=history.length;commandDraft='';
  if(raw==null||raw.length>96){append('Rejected: input limit is 96 characters.\n');return;}
  for(let i=0;i<raw.length;i++){const c=raw.charCodeAt(i);if(c<0x20||c===0x7f){append('Rejected: control characters are not allowed.\n');return;}}
  const command=raw.replace(/^ +| +$/g,'');if(command){history.push(command);history=history.slice(-16);}cursor=history.length;
@@ -110,14 +111,15 @@ function execute(raw){
  append('local> '+command+'\n'+result+'\n');
 }
 function submit(){execute(el('command').value);el('command').value='';el('command').focus();}
-function previous(){if(cursor>0)cursor--;el('command').value=history[cursor]||'';el('command').focus();}
-function next(){if(cursor<history.length)cursor++;el('command').value=history[cursor]||'';el('command').focus();}
+function boundedDraft(value){if(value==null)return '';return String(value).slice(0,96);}
+function previous(){if(cursor>=history.length)commandDraft=boundedDraft(el('command').value);if(cursor>0)cursor--;el('command').value=cursor<history.length?(history[cursor]||''):commandDraft;el('command').focus();}
+function next(){if(cursor<history.length){cursor++;el('command').value=cursor<history.length?(history[cursor]||''):commandDraft;}else{commandDraft=boundedDraft(el('command').value);el('command').value=commandDraft;}el('command').focus();}
 function clearOutput(){output='';el('output').textContent='';}
 function saveNotes(){noteState.draft=el('draft').value.slice(0,512);for(let j=0;j<3;j++){noteState.tasks[j]=el('task'+j).checked;noteState.labels[j]=el('label'+j).value.slice(0,40);}el('saved').textContent='Saved in preview session only; reload discards edits.';}
 document.querySelectorAll('[data-page]').forEach(button=>button.addEventListener('click',()=>openPage(Number(button.dataset.page))));
 el('back').addEventListener('click',back);el('run').addEventListener('click',submit);
 el('previous').addEventListener('click',previous);el('next').addEventListener('click',next);
-el('help').addEventListener('click',()=>execute('help'));el('clear').addEventListener('click',()=>execute('clear'));el('save').addEventListener('click',saveNotes);
+el('help').addEventListener('click',()=>{execute('help');el('command').value='';el('command').focus();});el('clear').addEventListener('click',()=>{execute('clear');el('command').value='';el('command').focus();});el('save').addEventListener('click',saveNotes);
 el('command').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();submit();}});
 document.addEventListener('keydown',event=>{
  if(event.key==='Escape'&&current!==-1){event.preventDefault();back();return;}

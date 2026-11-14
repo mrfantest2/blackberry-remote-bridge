@@ -23,6 +23,8 @@ class CP002Behavior(unittest.TestCase):
     def test_terminal_allowlist_offline_and_injection(self): self.run_mode('terminal')
     def test_terminal_control_characters_rejected_before_trim(self): self.run_mode('controls')
     def test_terminal_history_and_output_bounds(self): self.run_mode('bounds')
+    def test_terminal_history_draft_preservation(self): self.run_mode('history_draft')
+    def test_terminal_rejected_submission_resets_browsing(self): self.run_mode('history_rejected_reset')
     def test_rms_roundtrip_and_corrupt_bounds(self): self.run_mode('codec')
     def test_rms_failure_visible_and_no_corrupt_overwrite(self): self.run_mode('store')
     def test_rms_revalidates_record_after_successful_load(self): self.run_mode('store_revalidate')

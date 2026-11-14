@@ -1,0 +1,73 @@
+test_file_child_traversal_rejection (test_cp002.CP002Behavior.test_file_child_traversal_rejection) ... ok
+test_rms_failure_visible_and_no_corrupt_overwrite (test_cp002.CP002Behavior.test_rms_failure_visible_and_no_corrupt_overwrite) ... ok
+test_rms_revalidates_record_after_successful_load (test_cp002.CP002Behavior.test_rms_revalidates_record_after_successful_load) ... ok
+test_rms_roundtrip_and_corrupt_bounds (test_cp002.CP002Behavior.test_rms_roundtrip_and_corrupt_bounds) ... ok
+test_rms_storage_and_close_failures_block_later_saves (test_cp002.CP002Behavior.test_rms_storage_and_close_failures_block_later_saves) ... ok
+test_terminal_allowlist_offline_and_injection (test_cp002.CP002Behavior.test_terminal_allowlist_offline_and_injection) ... ok
+test_terminal_control_characters_rejected_before_trim (test_cp002.CP002Behavior.test_terminal_control_characters_rejected_before_trim) ... ok
+test_terminal_history_and_output_bounds (test_cp002.CP002Behavior.test_terminal_history_and_output_bounds) ... ok
+test_terminal_history_draft_preservation (test_cp002.CP002Behavior.test_terminal_history_draft_preservation) ... ok
+test_terminal_rejected_submission_resets_browsing (test_cp002.CP002Behavior.test_terminal_rejected_submission_resets_browsing) ... ok
+test_diagnostics_honest (test_cp002.CP002Contracts.test_diagnostics_honest) ... ok
+test_file_api_is_read_only_and_bounded (test_cp002.CP002Contracts.test_file_api_is_read_only_and_bounded) ... ok
+test_terminal_native_editable_and_keyboard (test_cp002.CP002Contracts.test_terminal_native_editable_and_keyboard) ... ok
+test_bad_mac_wrong_key_wrong_device (test_gateway.GatewayTests.test_bad_mac_wrong_key_wrong_device) ... ok
+test_capacity_fails_closed_then_prunes_expired (test_gateway.GatewayTests.test_capacity_fails_closed_then_prunes_expired) ... ok
+test_clock_rollback_fails_closed_after_cache_prune (test_gateway.GatewayTests.test_clock_rollback_fails_closed_after_cache_prune) ... ok
+test_concurrent_replay_accepts_once (test_gateway.GatewayTests.test_concurrent_replay_accepts_once) ... ok
+test_configuration_and_clock_fail_closed (test_gateway.GatewayTests.test_configuration_and_clock_fail_closed) ... ok
+test_duplicate_json_and_bad_envelopes (test_gateway.GatewayTests.test_duplicate_json_and_bad_envelopes) ... ok
+test_four_read_only_operations_and_redacted_audit (test_gateway.GatewayTests.test_four_read_only_operations_and_redacted_audit) ... ok
+test_mutated_and_signed_disallowed_operations (test_gateway.GatewayTests.test_mutated_and_signed_disallowed_operations) ... ok
+test_replay_and_expiry_boundaries (test_gateway.GatewayTests.test_replay_and_expiry_boundaries) ... ok
+test_strict_types_fields_versions_and_nonce (test_gateway.GatewayTests.test_strict_types_fields_versions_and_nonce) ... ok
+test_preview_control_character_rejection_parity (test_preview.PreviewBehavior.test_preview_control_character_rejection_parity) ... ok
+test_preview_history_draft_preservation (test_preview.PreviewBehavior.test_preview_history_draft_preservation) ... ok
+test_preview_rejected_submission_resets_browsing (test_preview.PreviewBehavior.test_preview_rejected_submission_resets_browsing) ... ok
+test_preview_terminal_navigation_notes_and_no_hardware_claims (test_preview.PreviewBehavior.test_preview_terminal_navigation_notes_and_no_hardware_claims) ... ok
+test_corrupt_report_fails_closed (test_reports.ReportPersistence.test_corrupt_report_fails_closed) ... ok
+test_empty_report_roundtrip_and_limits (test_reports.ReportPersistence.test_empty_report_roundtrip_and_limits) ... ok
+test_io_and_close_failures_visible (test_reports.ReportPersistence.test_io_and_close_failures_visible) ... ok
+test_native_entry_has_report_controls (test_reports.ReportPersistence.test_native_entry_has_report_controls) ... ok
+test_roundtrip_and_record_bounds (test_reports.ReportPersistence.test_roundtrip_and_record_bounds) ... ok
+test_build_uses_real_tools_and_local_outputs (test_torchos.Contracts.test_build_uses_real_tools_and_local_outputs) ... ok
+test_every_external_item_disconnected (test_torchos.Contracts.test_every_external_item_disconnected) ... ok
+test_native_entry_and_six_home_rows (test_torchos.Contracts.test_native_entry_and_six_home_rows) ... ok
+test_no_network_or_security_bypass_apis (test_torchos.Contracts.test_no_network_or_security_bypass_apis) ... ok
+test_packaging_identity (test_torchos.Contracts.test_packaging_identity) ... ok
+test_persistent_notes_and_task_state (test_torchos.Contracts.test_persistent_notes_and_task_state) ... ok
+test_preview_is_offline_and_labeled (test_torchos.Contracts.test_preview_is_offline_and_labeled) ... ok
+test_settings_back_and_clock_lifecycle (test_torchos.Contracts.test_settings_back_and_clock_lifecycle) ... ok
+test_source_trackable_artifacts_ignored (test_torchos.Contracts.test_source_trackable_artifacts_ignored) ... ok
+test_all_character_shortcuts (test_torchos.HostBehavior.test_all_character_shortcuts) ... ok
+test_portrait_layout_budget (test_torchos.HostBehavior.test_portrait_layout_budget) ... ok
+test_touch_boundaries_and_cancel (test_torchos.HostBehavior.test_touch_boundaries_and_cancel) ... ok
+test_trackpad_enter_space_activation (test_torchos.HostBehavior.test_trackpad_enter_space_activation) ... ok
+
+----------------------------------------------------------------------
+Ran 45 tests in 4.551s
+
+OK
+files: 12 assertions passed (host only)
+store: 27 assertions passed (host only)
+store_revalidate: 34 assertions passed (host only)
+codec: 51 assertions passed (host only)
+store_fail_closed: 32 assertions passed (host only)
+terminal: 18 assertions passed (host only)
+controls: 405 assertions passed (host only)
+bounds: 25 assertions passed (host only)
+history_draft: 24 assertions passed (host only)
+history_rejected_reset: 12 assertions passed (host only)
+preview: control-character rejection parity assertions passed (DOM double only)
+preview: history draft preservation, empty history, reset and bounds assertions passed (DOM double only)
+preview: rejected control, null and overlimit submissions reset browsing; Help parity passed (DOM double only)
+preview: terminal, bounds, navigation, keyboard, session notes and honest hardware assertions passed (DOM double only)
+corrupt: 7 diagnostic RMS assertions passed (host double only)
+empty: 30 diagnostic RMS assertions passed (host double only)
+failure: 8 diagnostic RMS assertions passed (host double only)
+roundtrip: 14 diagnostic RMS assertions passed (host double only)
+shortcuts: 65536 assertions passed (host doubles only)
+Synthetic portrait budget including chrome: 632 / 640 px
+layout: 8 assertions passed (host doubles only)
+touch: 9 assertions passed (host doubles only)
+activation: 5 assertions passed (host doubles only)

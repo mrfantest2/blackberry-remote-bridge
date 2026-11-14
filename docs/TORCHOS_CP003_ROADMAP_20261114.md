@@ -6,16 +6,18 @@ roadmap's physical-install milestone remains a separate authorization gate.
 ## Current accepted foundation
 
 Terminal control-input rejection and preview parity, defensive Notes saves,
-and report decode consistency are repaired. Fifty-seven host automated tests,
-authentic JDE compilation, packaging checks and desktop 480 x 640 preview QA
+and report decode consistency are repaired. Terminal history now preserves typed
+drafts, including empty-history navigation and rejected-submission reset.
+Sixty-one host automated tests,
+authentic JDE compilation, packaging checks and 25 desktop 480 x 640 preview checks
 pass. Native application version is still 0.2.0. No handset installation,
 secure transport, live remote module or Linux environment is claimed.
 
 ## Next offline engineering batch
 
-1. Terminal: preserve a partially typed draft during previous/next history
-   navigation; evaluate physical Menu/QWERTY history access and long-output
-   focus on real OS7 before choosing new bindings. Keep eight local commands,
+1. Terminal draft preservation is complete and independently accepted; see
+   `TORCHOS_CP003_HISTORY_QA_20261114.md`. Next evaluate physical Menu/QWERTY
+   history access and long-output focus on real OS7 before choosing new bindings. Keep eight local commands,
    input/output/history limits and complete offline operation. Add targeted
    behavior regressions for any change and retain native/preview parity.
 2. Notes/reports: avoid redundant writes after Save then Back; design explicit,
@@ -29,8 +31,11 @@ secure transport, live remote module or Linux environment is claimed.
 
 ## Physical readiness milestone — separate permission required
 
-Resolve signing requirements and signatures, then obtain explicit scoped
-installation permission. Verify native launch, UI/focus/scrolling, slide QWERTY,
+The current compiler emitted only optional signing metadata and no mandatory
+signature list. Review the exact candidate and conditional loader-reboot scope
+in `TORCHOS_CP003_INSTALL_DECISION_20261114.md`, then obtain explicit scoped
+preflight/installation/testing permission, including a possible required reboot.
+Stop if the handset reports a required missing signature. Verify native launch, UI/focus/scrolling, slide QWERTY,
 touch/trackpad, local battery, JSR-75 permission denial and RMS persistence after
 process restart. Do not infer reboot permission. See
 [installation gates](TORCHOS_CP003_DEPLOYMENT_READINESS_20261114.md).

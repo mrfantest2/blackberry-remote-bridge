@@ -46,6 +46,18 @@ public class CP002Harness {
         check(t.output.indexOf("local> ",outputBefore.length())<0,label+" not echoed raw");
         check(cleanHistory(t),label+" history clean");
     }
+    static String previousDraft(TerminalModel t, String input) throws Exception {
+        try {
+            java.lang.reflect.Method m=TerminalModel.class.getDeclaredMethod("previous", new Class[]{String.class});
+            m.setAccessible(true); return (String)m.invoke(t, new Object[]{input});
+        } catch(NoSuchMethodException e) { return t.previous(); }
+    }
+    static String nextDraft(TerminalModel t, String input) throws Exception {
+        try {
+            java.lang.reflect.Method m=TerminalModel.class.getDeclaredMethod("next", new Class[]{String.class});
+            m.setAccessible(true); return (String)m.invoke(t, new Object[]{input});
+        } catch(NoSuchMethodException e) { return t.next(); }
+    }
     public static void main(String[] args) throws Exception {
         String mode=args[0];
         if(mode.equals("terminal")) {
@@ -194,6 +206,85 @@ public class CP002Harness {
             check(cleanHistory(t),"accepted history clean");
             check(t.execute("\nhelp").indexOf("Rejected")>=0,"newline still rejected");
             check(t.execute("help").indexOf("Rejected")<0,"terminal recovers after rejection");
+        } else if(mode.equals("history_draft")) {
+            TerminalModel t=new TerminalModel();
+            t.execute("help");
+            int historyBefore=t.historyCount; String outputBefore=t.output;
+            check(previousDraft(t,"sta").equals("help"),"previous recalls newest history");
+            check(nextDraft(t,"help").equals("sta"),"next restores typed draft");
+            check(t.historyCount==historyBefore,"navigation does not mutate history");
+            check(t.output.equals(outputBefore),"navigation does not write output");
+
+            TerminalModel multi=new TerminalModel();
+            multi.execute("help"); multi.execute("status");
+            check(previousDraft(multi,"sta").equals("status"),"first previous recalls newest");
+            check(previousDraft(multi,"status").equals("help"),"second previous recalls older");
+            check(nextDraft(multi,"help").equals("status"),"next returns toward newest");
+            check(nextDraft(multi,"status").equals("sta"),"next restores saved draft after multiple previous");
+            check(nextDraft(multi,"edited").equals("edited"),"repeated next at newest preserves live draft");
+            check(multi.historyCount==2,"browsing never mutates history");
+
+            TerminalModel empty=new TerminalModel();
+            check(previousDraft(empty,"sta").equals("sta"),"empty history previous keeps typed text");
+            check(nextDraft(empty,"sta").equals("sta"),"empty history next keeps typed text");
+
+            TerminalModel bounded=new TerminalModel();
+            bounded.execute("help");
+            StringBuffer oversized=new StringBuffer();
+            for(int i=0;i<200;i++) oversized.append('q');
+            check(previousDraft(bounded,oversized.toString()).equals("help"),"oversized draft still recalls history");
+            String restored=nextDraft(bounded,"help");
+            check(restored.length()==TerminalModel.INPUT_LIMIT,"draft bounded to input limit");
+            check(previousDraft(bounded,null)!=null,"null draft input remains safe");
+            nextDraft(bounded,null);
+            check(bounded.historyCount==1,"draft never stored in history");
+            check(bounded.output.indexOf("qqqq")<0,"draft never written to output");
+
+            TerminalModel reset=new TerminalModel();
+            reset.execute("help");
+            previousDraft(reset,"sta");
+            reset.execute("status");
+            check(nextDraft(reset,"").equals(""),"submission clears saved draft");
+            check(previousDraft(reset,"").equals("status"),"submission resets browsing state");
+            check(nextDraft(reset,"status").equals(""),"cleared draft restored after submission");
+            previousDraft(reset,"again");
+            reset.execute("clear");
+            check(nextDraft(reset,"").equals(""),"clear leaves empty draft");
+            check(previousDraft(reset,"").equals("clear"),"clear resets browsing to newest");
+
+            TerminalModel plain=new TerminalModel();
+            plain.execute("help");
+            check(plain.previous().equals("help"),"no-argument previous remains compatible");
+            check(plain.next().equals(""),"no-argument next at newest remains compatible");
+        } else if(mode.equals("history_rejected_reset")) {
+            TerminalModel control=new TerminalModel();
+            control.execute("help"); control.execute("date");
+            previousDraft(control,"sta");
+            int controlHistory=control.historyCount; String controlOutput=control.output;
+            check(control.execute("\u0001help").indexOf("Rejected")>=0,"rejected control submission");
+            check(control.historyCount==controlHistory,"rejected control not stored");
+            check(control.output.indexOf("\u0001help",controlOutput.length())<0,"rejected control not echoed raw");
+            check(nextDraft(control,"").equals(""),"rejected control does not restore stale draft");
+
+            TerminalModel nulled=new TerminalModel();
+            nulled.execute("help"); nulled.execute("date");
+            previousDraft(nulled,"sta");
+            int nullHistory=nulled.historyCount; String nullOutput=nulled.output;
+            check(nulled.execute(null).indexOf("Rejected")>=0,"rejected null submission");
+            check(nulled.historyCount==nullHistory,"rejected null not stored");
+            check(nulled.output.indexOf("Rejected",nullOutput.length())>=0,"rejected null stays visible");
+            check(nextDraft(nulled,"").equals(""),"rejected null does not restore stale draft");
+
+            TerminalModel over=new TerminalModel();
+            over.execute("help"); over.execute("date");
+            previousDraft(over,"sta");
+            StringBuffer tooLong=new StringBuffer();
+            for(int i=0;i<97;i++) tooLong.append('z');
+            int overHistory=over.historyCount; String overOutput=over.output;
+            check(over.execute(tooLong.toString()).indexOf("Rejected")>=0,"rejected overlimit submission");
+            check(over.historyCount==overHistory,"rejected overlimit not stored");
+            check(over.output.indexOf("zzzz",overOutput.length())<0,"rejected overlimit not echoed raw");
+            check(nextDraft(over,"").equals(""),"rejected overlimit does not restore stale draft");
         } else if(mode.equals("files")) {
             String[] bad={"../","..","/root/","a/b/","a\\b","a:b","%2e%2e/","","./","a\n"};
             for(int i=0;i<bad.length;i++) check(!safeChild(bad[i]),"unsafe name "+i);

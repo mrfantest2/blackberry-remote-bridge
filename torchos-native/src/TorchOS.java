@@ -185,7 +185,10 @@ public final class TorchOS extends UiApplication {
         String output = "TorchOS local terminal. Type help. Remote services: disconnected.\n";
         final String[] history = new String[HISTORY_LIMIT];
         int historyCount, cursor;
+        String draft = "";
         String execute(String raw) {
+            cursor = historyCount;
+            draft = "";
             if (raw == null || raw.length() > INPUT_LIMIT) return append("Rejected: input limit is 96 characters.\n");
             for (int i=0;i<raw.length();i++) { char c = raw.charAt(i); if (c < 0x20 || c == 0x7F) return append("Rejected: control characters are not allowed.\n"); }
             String command = raw.trim();
@@ -214,8 +217,26 @@ public final class TorchOS extends UiApplication {
             if (output.length() > OUTPUT_LIMIT) output = output.substring(output.length() - OUTPUT_LIMIT);
             return value;
         }
-        String previous() { if (cursor > 0) cursor--; return cursor < historyCount ? history[cursor] : ""; }
-        String next() { if (cursor < historyCount) cursor++; return cursor < historyCount ? history[cursor] : ""; }
+        private String boundedDraft(String value) {
+            if (value == null) return "";
+            return value.length() > INPUT_LIMIT ? value.substring(0, INPUT_LIMIT) : value;
+        }
+        String previous(String currentInput) {
+            if (cursor >= historyCount) draft = boundedDraft(currentInput);
+            if (cursor > 0) cursor--;
+            return cursor < historyCount ? history[cursor] : draft;
+        }
+        String next(String currentInput) {
+            if (cursor < historyCount) {
+                cursor++;
+                if (cursor < historyCount) return history[cursor];
+                return draft;
+            }
+            draft = boundedDraft(currentInput);
+            return draft;
+        }
+        String previous() { return previous(""); }
+        String next() { return next(""); }
     }
     private final class Terminal extends Page {
         private final RichTextField output;
@@ -236,8 +257,8 @@ public final class TorchOS extends UiApplication {
             };
             input.setBackground(BackgroundFactory.createSolidBackground(0xFFFFFF)); add(input);
             button(this, "Run", new Runnable() { public void run() { submit(); } });
-            button(this, "Previous command", new Runnable() { public void run() { input.setText(terminal.previous()); input.setFocus(); } });
-            button(this, "Next command", new Runnable() { public void run() { input.setText(terminal.next()); input.setFocus(); } });
+            button(this, "Previous command", new Runnable() { public void run() { input.setText(terminal.previous(input.getText())); input.setFocus(); } });
+            button(this, "Next command", new Runnable() { public void run() { input.setText(terminal.next(input.getText())); input.setFocus(); } });
             button(this, "Help", new Runnable() { public void run() { command("help"); } });
             button(this, "Clear", new Runnable() { public void run() { command("clear"); } });
             addMenuItem(new MenuItem("Show keyboard", 80, 1) {

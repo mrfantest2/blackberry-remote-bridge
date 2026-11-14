@@ -1,0 +1,69 @@
+{
+  "based_on": "eb0198117157cacb4bd0226151edffbc444ad14e",
+  "classification": "Host packaging verified; unsigned; not installed or physically tested",
+  "checks": [
+    "JAD COD and JAR URLs and byte sizes",
+    "JAD SHA-1 matches generated COD",
+    "ALX/JAD identity, version, module and fileset",
+    "COD magic",
+    "JAR CRC and entry class",
+    "Class major version47",
+    "RAPC No errors; three Java warnings and two unused-method warnings",
+    "25 browser checks against the exact final preview script"
+  ],
+  "java_class_version": [
+    0,
+    47
+  ],
+  "jad": {
+    "MIDlet-Name": "TorchOS",
+    "MIDlet-Version": "0.2.0",
+    "MIDlet-Vendor": "FanTest",
+    "MIDlet-Jar-URL": "TorchOS.jar",
+    "MIDlet-Jar-Size": "56540",
+    "MicroEdition-Profile": "MIDP-2.0",
+    "MicroEdition-Configuration": "CLDC-1.1",
+    "MIDlet-1": "TorchOS,,TorchOS",
+    "RIM-MIDlet-Flags-1": "0",
+    "Manifest-Version": "1.0",
+    "RIM-COD-URL": "TorchOS.cod",
+    "RIM-COD-Size": "23416",
+    "RIM-COD-Creation-Time": "1794665524",
+    "RIM-COD-Module-Name": "TorchOS",
+    "RIM-COD-Module-Dependencies": "net_rim_cldc",
+    "RIM-COD-SHA1": "a0 1d fd f9 35 58 80 b2 f8 8c 3b bd a2 90 7a b4 a0 c8 22 f6"
+  },
+  "cso_inventory": [
+    "33000000=RIMAPPSA2",
+    "52424200=RIM Blackberry Apps API",
+    "52434900=RIM Crypto API - Internal",
+    "52435200=RIM Crypto API - RIM"
+  ],
+  "mandatory_csl_emitted": false,
+  "artifacts": {
+    "torchos-native/build/TorchOS.cod": {
+      "bytes": 23416,
+      "sha256": "c51215db3d4367805859c90e5eb98a24e8fa427c541df1493ff0be6c0edf825e"
+    },
+    "torchos-native/build/TorchOS.jar": {
+      "bytes": 56540,
+      "sha256": "5654297bb6ab6c26d66573e43963f4d6f510c8bc4ef28a58f0692143f8e2c98d"
+    },
+    "torchos-native/build/TorchOS.jad": {
+      "bytes": 480,
+      "sha256": "371d689d984e66140fea5d8a33cc5dbde93411b7c5125dd62cc08c41d428f0ea"
+    },
+    "torchos-native/TorchOS.alx": {
+      "bytes": 409,
+      "sha256": "08e95536e5cf5cd8c342c24c2158f96e102cd0f973a5e29e854f6d275ed988b8"
+    },
+    "torchos-native/src/TorchOS.java": {
+      "bytes": 33876,
+      "sha256": "4014a505b02e723b98722a5b2597cd24f20397ca4bec815e14a28b48b6325f36"
+    },
+    "torchos-native/preview/index.html": {
+      "bytes": 13563,
+      "sha256": "7a616d9b522dc38ff499ae49908167acefe0444f68210394e903cee4cf395e48"
+    }
+  }
+}

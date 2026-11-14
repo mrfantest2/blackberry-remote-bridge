@@ -1,5 +1,10 @@
 # TorchOS CP003 — independent engineering acceptance
 
+Historical first CP003 acceptance below. The current terminal-history follow-up
+is documented in [latest acceptance](TORCHOS_CP003_HISTORY_QA_20261114.md);
+[current install decision](TORCHOS_CP003_INSTALL_DECISION_20261114.md) records
+the new artifact and conditional loader-reboot requirement.
+
 Date: 2026-11-14. Repository: `mrfantest2/blackberry-remote-bridge`.
 Branch: `feat/torchos-native-shell-20261114`.
 Parent handoff: `38b8af9999368dd792810f238856695b038ce7e6`.

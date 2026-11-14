@@ -1,6 +1,6 @@
 # TorchOS CP003 — installation readiness
 
-Date: 2026-11-14. **HOLD: compiled and host-accepted; not authorized to install.**
+Date: 2026-11-14. **READY FOR AUTHORIZATION/PREFLIGHT; physical changes remain HOLD.**
 This report supersedes the CP002 readiness state for the current source
 checkpoint; CP002 remains historical evidence. TorchOS remains a Java
 application on stock BlackBerry OS7. Application identity/version is unchanged.
@@ -10,11 +10,11 @@ application on stock BlackBerry OS7. Application identity/version is unchanged.
 | Gate | State | Evidence |
 |---|---|---|
 | Exact implementation model responds | PASS | Successful pinned-model probe; OpenCode 1.19.5 |
-| Independent baseline retained | PASS | 52 original tests plus five regressions, total 57 |
-| Authentic JDE 7.0 host compilation | PASS | RAPC exit 0, No errors, three warnings |
+| Independent baseline retained | PASS | 52 original tests plus nine regressions, total 61 |
+| Authentic JDE 7.0 host compilation | PASS | RAPC exit 0, No errors; three Java and two unused-method warnings |
 | COD/JAD/JAR/ALX consistency | PASS host inspection | Sizes, hashes, entry class, module/version and fileset verified |
-| 480 x 640 HTML and interaction | PASS desktop only | Screenshot and 15 browser checks; native budget synthetic |
-| BlackBerry signatures and actual protected API requirements | UNVERIFIED | Static inventory below is insufficient for deployment clearance |
+| 480 x 640 HTML and interaction | PASS desktop only | Screenshot and 25 browser checks; native budget synthetic |
+| Signing requirement metadata | NO COMPILER-REPORTED MANDATORY LIST; handset enforcement untested | Vendor tool classifies emitted CSO entries as optional; no CSL emitted |
 | JSR-75 permissions and denial behavior | NOT PHYSICALLY TESTED | Read-only source and host safeguards only |
 | Native launch, physical QWERTY, trackpad/touch, fonts/scrolling | NOT TESTED | No handset install |
 | Notes/labels/report RMS restart durability | NOT PHYSICALLY TESTED | Host doubles only |
@@ -55,13 +55,24 @@ equally, absence of an RRT line is not clearance to deploy.
 
 ## Accepted local artifacts
 
-COD: `torchos-native/build/TorchOS.cod`, 23296 bytes, SHA-256
-`31a916a3cbec455196d83f9145d1a45bb2bc700bb59a9be255b53beeed7221af`.
-JAR: 56216 bytes; JAD: 480 bytes; ALX: 409 bytes. All checksums and JAD metadata
-are in [artifact verification](TORCHOS_CP003_ARTIFACT_VERIFICATION_20261114.json).
+COD: `torchos-native/build/TorchOS.cod`, 23416 bytes, SHA-256
+`c51215db3d4367805859c90e5eb98a24e8fa427c541df1493ff0be6c0edf825e`.
+JAR: 56540 bytes; JAD: 480 bytes; ALX: 409 bytes. All checksums and JAD metadata
+are in [artifact verification](TORCHOS_CP003_HISTORY_ARTIFACTS_20261114.json).
 Authentic compiler output is in
-[build evidence](TORCHOS_CP003_BUILD_OUTPUT_20261114.txt).
+[build evidence](TORCHOS_CP003_HISTORY_BUILD_OUTPUT_20261114.txt).
 Generated COD/JAR/JAD remain local ignored artifacts, not committed releases.
+
+## Current controlled-install proposal, not executed
+
+See [exact candidate and authorization scope](TORCHOS_CP003_INSTALL_DECISION_20261114.md).
+Read-only vendor-tool inspection now confirms that the emitted CSO entries are
+optional, rather than proof of missing mandatory signatures. No signing tool
+or credential access was used. Local Barry source also shows that a loader
+session can automatically reset the device when it requests RESET_REQUIRED.
+Separate permission must cover that possibility before any such session,
+including preflight queries, or another supported no-reset method must be
+verified. Nothing has contacted or modified the handset.
 
 ## Future installation and rollback, not executed
 
