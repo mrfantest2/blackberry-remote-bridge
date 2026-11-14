@@ -14,7 +14,7 @@ CFLAGS := -mcpu=cortex-a15 -marm -mfloat-abi=soft -std=c11 -ffreestanding \
 LDFLAGS := -mcpu=cortex-a15 -marm -nostdlib -Wl,--build-id=none \
            -Wl,-T,$(ROOT)/linker.ld -Wl,-Map,$(OUT)/torchos.map
 
-.PHONY: all run test clean inspect
+.PHONY: all run test clean inspect inspect-fdt
 all: $(OUT)/torchos.elf
 
 $(OUT):
@@ -44,6 +44,13 @@ run: all
 
 test: all
 	python3 -m unittest discover -s $(ROOT)/tests -p 'test_*.py' -v
+
+# Read-only host inspection of QEMU-generated virtual hardware, NOT a
+# guest-side driver or an instruction to enumerate real BlackBerry buses.
+inspect-fdt: | $(OUT)
+	$(QEMU) -machine virt,dumpdtb=$(OUT)/virt.dtb -cpu cortex-a15 -m 128M \
+	  -display none -monitor none -serial none -nic none
+	python3 $(ROOT)/tools/fdt_inventory.py $(OUT)/virt.dtb
 
 clean:
 	rm -rf $(OUT)
