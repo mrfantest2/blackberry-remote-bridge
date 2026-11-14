@@ -36,7 +36,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            gcc-arm-none-eabi binutils-arm-none-eabi qemu-system-arm
+            gcc-arm-none-eabi binutils-arm-none-eabi qemu-system-arm gdb-multiarch
           arm-none-eabi-gcc --version | head -1
           qemu-system-arm --version | head -1
 
