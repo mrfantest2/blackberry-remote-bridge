@@ -23,7 +23,7 @@ PHASE_READY = 0x06460003
 def symbols():
     process = subprocess.run(
         ["arm-none-eabi-nm", "-n", str(ELF)], capture_output=True,
-        text=True, timeout=5, check=True)
+        text=True, timeout=20, check=True)
     mapping = {}
     for line in process.stdout.splitlines():
         match = re.match(r"^([0-9a-f]+) [A-Za-z] ([A-Za-z_][A-Za-z_0-9]*)$", line)
