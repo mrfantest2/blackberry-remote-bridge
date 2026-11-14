@@ -1,0 +1,92 @@
+name: TorchOS CP006.5 — Instrumented QEMU PL011 Fault Gate
+
+on:
+  push:
+    branches:
+      - feat/torchos-native-shell-20261114
+      - 'feature/torchos-*'
+    paths:
+      - '.github/workflows/torchos-pl011-stall.yml'
+      - 'torchos-emulator/**'
+  pull_request:
+    branches:
+      - feat/torchos-native-shell-20261114
+    paths:
+      - '.github/workflows/torchos-pl011-stall.yml'
+      - 'torchos-emulator/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: torchos-pl011-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  instrumented-qemu-pl011:
+    name: Build test QEMU 8.2.2 and exercise actual guest UART MMIO
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Read-only checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install isolated emulator build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            gcc-arm-none-eabi binutils-arm-none-eabi qemu-system-arm gdb-multiarch \
+            meson ninja-build pkg-config curl xz-utils libglib2.0-dev \
+            libpixman-1-dev libfdt-dev zlib1g-dev
+          qemu-system-arm --version | head -1
+      - name: Compile existing freestanding ARM guest (no physical hardware)
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -C torchos-emulator all
+      - name: Fetch official QEMU 8.2.2 and instrument only its PL011 model
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/cp065-qemu"
+          cd "${RUNNER_TEMP}/cp065-qemu"
+          curl --fail --location --retry 3 --connect-timeout 20 \
+            https://download.qemu.org/qemu-8.2.2.tar.xz -o qemu-8.2.2.tar.xz
+          sha256sum qemu-8.2.2.tar.xz
+          tar -xf qemu-8.2.2.tar.xz
+          python3 "${GITHUB_WORKSPACE}/torchos-emulator/ci/patch_qemu_pl011.py" \
+            "${RUNNER_TEMP}/cp065-qemu/qemu-8.2.2/hw/char/pl011.c"
+      - name: Compile disposable, test-instrumented QEMU arm-softmmu
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${RUNNER_TEMP}/cp065-qemu/qemu-8.2.2"
+          mkdir -p build
+          cd build
+          ../configure --target-list=arm-softmmu --disable-docs \
+            --disable-gtk --disable-sdl --disable-vnc \
+            --disable-slirp --disable-tools --disable-werror
+          ninja -j 2 qemu-system-arm
+          ./qemu-system-arm --version
+          test -x ./qemu-system-arm
+      - name: Validate live ARM UART normal path and persistent TX-full failure
+        shell: bash
+        env:
+          TORCHOS_CP065_QEMU: ${{ runner.temp }}/cp065-qemu/qemu-8.2.2/build/qemu-system-arm
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover \
+            -s torchos-emulator/ci -p 'test_pl011_real_qemu.py' -v
+      - name: Publish sanitized result summary (no compiled artifacts)
+        if: success()
+        shell: bash
+        run: |
+          {
+            echo '## TorchOS CP006.5 — Test-instrumented QEMU PL011'
+            echo 'Actual freestanding ARM guest MMIO and real PL011 device-model read exercised.'
+            echo 'A disposable **instrumented QEMU 8.2.2** forces TXFF. This is NOT natural or unmodified upstream QEMU behavior.'
+            echo 'No BlackBerry hardware, self-hosted runner, binary or firmware access.'
+          } >> "${GITHUB_STEP_SUMMARY}"
