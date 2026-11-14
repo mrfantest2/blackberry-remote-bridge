@@ -45,8 +45,13 @@ class ArmConsole:
         return result
 
     def command(self, cmd):
-        self.proc.stdin.write(cmd)
-        self.proc.stdin.flush()
+        # QEMU UART FIFOs are small; pace long scripted messages without
+        # relying on an interactive terminal's natural typing speed.
+        for byte in cmd:
+            self.proc.stdin.write(bytes((byte,)))
+            self.proc.stdin.flush()
+            if len(cmd) > 12:
+                time.sleep(0.002)
         return self.until()
 
     def close(self):
@@ -95,6 +100,25 @@ class QemuBoot(unittest.TestCase):
         history = self.console.command(b"history\r")
         self.assertIn(b"help", history)
         self.assertIn(b"status", history)
+
+    def test_notes_are_bounded_volatile_and_clearable(self):
+        self.console.until()
+        self.assertIn(b"RAM-only", self.console.command(b"notes\r"))
+        self.assertIn(b"RAM only", self.console.command(b"notes set safe-demo\r"))
+        self.assertIn(b"safe-demo", self.console.command(b"notes show\r"))
+        self.assertIn(b"cleared", self.console.command(b"notes clear\r"))
+        self.assertIn(b"No volatile note", self.console.command(b"notes show\r"))
+
+    def test_oversized_notes_do_not_overwrite_and_reset_on_reboot(self):
+        self.console.until()
+        self.console.command(b"notes set base-note\r")
+        large = self.console.command(b"notes set " + b"X" * 49 + b"\r")
+        self.assertIn(b"previous note preserved", large)
+        self.assertIn(b"base-note", self.console.command(b"notes show\r"))
+        self.console.close()
+        self.console = ArmConsole()
+        self.console.until()
+        self.assertIn(b"No volatile note", self.console.command(b"notes show\r"))
 
     def test_rejects_unknown_and_nonprinting_input(self):
         self.console.until()
