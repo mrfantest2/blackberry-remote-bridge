@@ -36,7 +36,7 @@ inspect: all
 
 run: all
 	$(QEMU) -machine virt -cpu cortex-a15 -m 128M \
-	  -nographic -monitor none -serial stdio \
+	  -display none -monitor none -serial stdio \
 	  -no-reboot -kernel $(OUT)/torchos.elf
 
 test: all
