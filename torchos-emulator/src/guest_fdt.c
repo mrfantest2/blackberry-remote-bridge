@@ -66,8 +66,8 @@ static int decode_range(const uint8_t *p, uint32_t size,
 
 int guest_fdt_parse(const void *dtb, size_t accessible_bytes,
                     struct guest_fdt_devices *out) {
-    struct guest_fdt_devices result = {0};
-    struct node_state stack[FDT_MAX_DEPTH] = {{0}};
+    struct guest_fdt_devices result;
+    struct node_state stack[FDT_MAX_DEPTH];
     uint32_t depth = 0u, nodes = 0u, props = 0u;
     uint32_t pos, structure_end, strings_off, strings_size;
     uint32_t root_address_cells = 0u, root_size_cells = 0u;
@@ -77,6 +77,10 @@ int guest_fdt_parse(const void *dtb, size_t accessible_bytes,
     uint32_t total, struct_off, struct_size;
 
     if (out == NULL) return 0;
+    result.uart_address = 0u;
+    result.uart_size = 0u;
+    result.ram_address = 0u;
+    result.ram_size = 0u;
     *out = result;
     if (data == NULL || accessible_bytes < 40u ||
         accessible_bytes > GUEST_FDT_LIMIT) return 0;
