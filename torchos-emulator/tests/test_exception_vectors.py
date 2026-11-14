@@ -135,7 +135,7 @@ class QemuAarch32Exception(unittest.TestCase):
                                          f"vector +{offset:#x} is not an A32 B instruction")
                     self.assertEqual(qmp.word(self.syms["cp064_boot_phase"]), READY)
                     print(f"CP006.6 VBAR=0x{vector:08x} eight vectors linked; "
-                          "IRQ/FIQ delivery still MASKED/UNVERIFIED")
+                          "normal boot IRQ/FIQ masked (separate SGI0 test validates IRQ delivery)")
             finally:
                 if qmp:
                     qmp.close()
