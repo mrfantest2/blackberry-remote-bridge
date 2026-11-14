@@ -1,4 +1,4 @@
-name: TorchOS ARM QEMU Boot & FDT QA
+name: TorchOS ARM QEMU Boot & FDT QA (CP006.4)
 
 on:
   push:
@@ -36,9 +36,10 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            gcc-arm-none-eabi binutils-arm-none-eabi qemu-system-arm
+            gcc-arm-none-eabi binutils-arm-none-eabi qemu-system-arm gdb-multiarch
           arm-none-eabi-gcc --version | head -1
           qemu-system-arm --version | head -1
+          qemu-system-arm -machine help | grep -E '(^|[[:space:]])virt-8\.2([[:space:]]|$)'
 
       - name: Compile standalone research ARM ELF
         shell: bash
@@ -60,9 +61,9 @@ jobs:
         shell: bash
         run: |
           {
-            echo '## TorchOS CP006.2 — QEMU virtual ARM and FDT'
+            echo '## TorchOS CP006.4 — QEMU virt-8.2 and actual guest fault injection'
             echo 'Bare-metal ARM ELF compiled and cold-booted under QEMU virt.'
-            echo 'Interactive UART, local-command and malformed-FDT tests passed.'
+            echo 'Interactive UART, modular console and validated guest-fault test suite passed.'
             echo 'QEMU virt device-tree UART/RAM inventory validated on the host; no physical hardware detected.'
             echo 'This is **not** a retail BlackBerry Torch 9810 image or device proof.'
             echo 'No flash, driver, firmware, handset, secret or private runner was used.'

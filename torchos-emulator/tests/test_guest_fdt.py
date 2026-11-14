@@ -71,7 +71,7 @@ class GuestFdtParser(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="torchos-cp0063-qemu-") as folder:
             target = Path(folder) / "virt.dtb"
             subprocess.run([
-                "qemu-system-arm", "-machine", "virt,dumpdtb=" + str(target),
+                "qemu-system-arm", "-machine", "virt-8.2,dumpdtb=" + str(target),
                 "-cpu", "cortex-a15", "-m", "128M", "-nic", "none",
                 "-display", "none", "-monitor", "none", "-serial", "none",
             ], check=True, capture_output=True, timeout=15)

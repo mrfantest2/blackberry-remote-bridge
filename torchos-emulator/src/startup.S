@@ -1,11 +1,10 @@
-/* TorchOS CP005: QEMU virt ARMv7 boot, not BlackBerry firmware. */
+/* TorchOS CP006.4: QEMU virt ARMv7 only, not BlackBerry firmware. */
 .syntax unified
 .cpu cortex-a15
 .arm
 .section .text.boot, "ax"
 .global _start
 .type _start, %function
-
 _start:
     cpsid if
     ldr r0, =__bss_start
@@ -19,5 +18,11 @@ _start:
 2:
     ldr sp, =__stack_top
     bl kmain
-3:
-    b 3b
+3:  b 3b
+
+/* Named stable fail-closed state for QEMU monitor PC inspection. */
+.global cp064_halt
+.type cp064_halt, %function
+cp064_halt:
+4:  wfi
+    b 4b

@@ -1,59 +1,38 @@
-# CP005 is ONLY a generic QEMU ARMv7 experiment. No device deployment.
+# QEMU ARM virt only, no flash/install or BlackBerry proprietary dependencies.
 CROSS ?= arm-none-eabi-
 CC := $(CROSS)gcc
-OBJCOPY := $(CROSS)objcopy
 READELF := $(CROSS)readelf
 QEMU ?= qemu-system-arm
-
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 OUT := $(ROOT)/build
 CFLAGS := -mcpu=cortex-a15 -marm -mfloat-abi=soft -std=c11 -ffreestanding \
-          -fno-builtin -fno-stack-protector -fno-pic \
-          -fno-unwind-tables -fno-asynchronous-unwind-tables \
-          -Os -Wall -Wextra -Werror
+ -fno-builtin -fno-stack-protector -fno-pic -fno-unwind-tables \
+ -fno-asynchronous-unwind-tables -Os -Wall -Wextra -Werror
 LDFLAGS := -mcpu=cortex-a15 -marm -nostdlib -Wl,--build-id=none \
-           -Wl,-T,$(ROOT)/linker.ld -Wl,-Map,$(OUT)/torchos.map
-
+ -Wl,-T,$(ROOT)/linker.ld -Wl,-Map,$(OUT)/torchos.map
+OBJS := $(addprefix $(OUT)/,startup.o kernel.o guest_fdt.o hal_qemu_virt.o uart_poll.o console.o commands.o)
 .PHONY: all run test clean inspect inspect-fdt
 all: $(OUT)/torchos.elf
-
 $(OUT):
 	mkdir -p $(OUT)
-
 $(OUT)/startup.o: $(ROOT)/src/startup.S | $(OUT)
 	$(CC) -mcpu=cortex-a15 -marm -c $< -o $@
-
-$(OUT)/kernel.o: $(ROOT)/src/kernel.c $(ROOT)/src/hal.h | $(OUT)
+$(OUT)/%.o: $(ROOT)/src/%.c | $(OUT)
 	$(CC) $(CFLAGS) -c $< -o $@
-
-$(OUT)/guest_fdt.o: $(ROOT)/src/guest_fdt.c $(ROOT)/src/guest_fdt.h | $(OUT)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(OUT)/hal_qemu_virt.o: $(ROOT)/src/hal_qemu_virt.c $(ROOT)/src/hal.h $(ROOT)/src/guest_fdt.h | $(OUT)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(OUT)/torchos.elf: $(OUT)/startup.o $(OUT)/kernel.o $(OUT)/hal_qemu_virt.o $(OUT)/guest_fdt.o $(ROOT)/linker.ld
-	$(CC) $(LDFLAGS) $(OUT)/startup.o $(OUT)/kernel.o $(OUT)/hal_qemu_virt.o $(OUT)/guest_fdt.o -o $@
+$(OUT)/torchos.elf: $(OBJS) $(ROOT)/linker.ld
+	$(CC) $(LDFLAGS) $(OBJS) -o $@
 	$(READELF) -h $@ | grep -Eq 'Machine:.*ARM'
-	@echo 'QEMU-only ARM ELF generated; NOT a BlackBerry firmware image.'
-
+	@echo 'QEMU-only freestanding ARM ELF; not BlackBerry firmware.'
 inspect: all
 	$(READELF) -h $(OUT)/torchos.elf
-
 run: all
-	$(QEMU) -machine virt -cpu cortex-a15 -m 128M \
-	  -display none -monitor none -serial stdio -nic none \
-	  -no-reboot -kernel $(OUT)/torchos.elf
-
+	$(QEMU) -machine virt-8.2 -cpu cortex-a15 -m 128M -display none \
+	  -monitor none -serial stdio -nic none -no-reboot -kernel $(OUT)/torchos.elf
 test: all
 	python3 -m unittest discover -s $(ROOT)/tests -p 'test_*.py' -v
-
-# Read-only host inspection of QEMU-generated virtual hardware, NOT a
-# guest-side driver or an instruction to enumerate real BlackBerry buses.
 inspect-fdt: | $(OUT)
-	$(QEMU) -machine virt,dumpdtb=$(OUT)/virt.dtb -cpu cortex-a15 -m 128M \
+	$(QEMU) -machine virt-8.2,dumpdtb=$(OUT)/virt.dtb -cpu cortex-a15 -m 128M \
 	  -display none -monitor none -serial none -nic none
 	python3 $(ROOT)/tools/fdt_inventory.py $(OUT)/virt.dtb
-
 clean:
 	rm -rf $(OUT)

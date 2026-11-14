@@ -15,7 +15,7 @@ class ArmConsole:
     def __init__(self):
         self.proc = subprocess.Popen(
             [
-                "qemu-system-arm", "-machine", "virt",
+                "qemu-system-arm", "-machine", "virt-8.2",
                 "-cpu", "cortex-a15", "-m", "128M",
                 "-display", "none", "-monitor", "none", "-nic", "none",
                 "-serial", "stdio", "-no-reboot", "-kernel", str(ELF),
