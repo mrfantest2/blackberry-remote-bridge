@@ -187,6 +187,7 @@ public final class TorchOS extends UiApplication {
         int historyCount, cursor;
         String execute(String raw) {
             if (raw == null || raw.length() > INPUT_LIMIT) return append("Rejected: input limit is 96 characters.\n");
+            for (int i=0;i<raw.length();i++) { char c = raw.charAt(i); if (c < 0x20 || c == 0x7F) return append("Rejected: control characters are not allowed.\n"); }
             String command = raw.trim();
             if (command.length() > 0) {
                 if (historyCount == HISTORY_LIMIT) { for (int i=1;i<historyCount;i++) history[i-1]=history[i]; historyCount--; }
@@ -299,17 +300,22 @@ public final class TorchOS extends UiApplication {
         }
         boolean save(NoteData value) {
             if (blocked) return false;
+            byte[] bytes;
+            try { bytes = NoteCodec.encode(value); }
+            catch (Exception e) { error = "Persistence error: invalid draft. Existing notes preserved; edit and retry."; return false; }
             RecordStore rms = null; boolean saved = false;
             try {
-                byte[] bytes = NoteCodec.encode(value);
                 rms = RecordStore.openRecordStore("TorchOS_CP002", true);
                 int records = rms.getNumRecords();
                 if (records == 0) rms.addRecord(bytes, 0, bytes.length);
-                else if (records == 1) rms.setRecord(1, bytes, 0, bytes.length);
-                else throw new IOException("Unexpected records");
+                else if (records == 1) {
+                    if (rms.getRecordSize(1) > 2048) throw new IOException("Record limit");
+                    NoteCodec.decode(rms.getRecord(1));
+                    rms.setRecord(1, bytes, 0, bytes.length);
+                } else throw new IOException("Unexpected records");
                 error = ""; saved = true;
-            } catch (Exception e) { error = "Persistence error: save failed. Draft remains in memory; retry or Back without saving."; }
-            finally { if (rms != null) try { rms.closeRecordStore(); } catch (Exception e) { error = "Persistence error: store close failed; save unconfirmed."; saved = false; } }
+            } catch (Exception e) { blocked = true; error = "Persistence error: save failed; existing notes state unconfirmed; saves blocked this session."; }
+            finally { if (rms != null) try { rms.closeRecordStore(); } catch (Exception e) { blocked = true; error = "Persistence error: store close failed; save unconfirmed; saves blocked this session."; saved = false; } }
             return saved;
         }
     }
@@ -391,7 +397,7 @@ public final class TorchOS extends UiApplication {
         private boolean blocked;
 
         static String decode(byte[] bytes) throws IOException {
-            if (bytes == null || bytes.length < 8 || bytes.length > LIMIT) throw new IOException("Report length");
+            if (bytes == null || bytes.length < 7 || bytes.length > LIMIT) throw new IOException("Report length");
             DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
             if (in.readInt() != MAGIC || in.readUnsignedByte() != 1) throw new IOException("Report version");
             String report = in.readUTF();
@@ -440,7 +446,7 @@ public final class TorchOS extends UiApplication {
                 saved = true;
             } catch (Exception e) {
                 blocked = true;
-                error = "Report save failed; previous report preserved, saves blocked until restart.";
+                error = "Report save failed; existing report state unconfirmed; saves blocked until restart.";
             } finally {
                 if (rms != null) try { rms.closeRecordStore(); }
                 catch (Exception e) { blocked = true; error = "Report close error; save unconfirmed."; }

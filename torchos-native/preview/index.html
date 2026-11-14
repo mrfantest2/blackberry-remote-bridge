@@ -92,8 +92,9 @@ function openPage(i){if(!Number.isInteger(i)||i<0||i>=pages.length)return;stack.
 function back(){if(current===6)saveNotes();const old=current;render(stack.length?stack.pop():-1);const focus=current===-1?(old<6?old:11):old;document.querySelector('[data-page="'+focus+'"]').focus();}
 function append(value){output=(output+value).slice(-4096);el('output').textContent=output;el('output').scrollTop=el('output').scrollHeight;}
 function execute(raw){
- if(raw.length>96){append('Rejected: input limit is 96 characters.\n');return;}
- const command=raw.trim();if(command){history.push(command);history=history.slice(-16);}cursor=history.length;
+ if(raw==null||raw.length>96){append('Rejected: input limit is 96 characters.\n');return;}
+ for(let i=0;i<raw.length;i++){const c=raw.charCodeAt(i);if(c<0x20||c===0x7f){append('Rejected: control characters are not allowed.\n');return;}}
+ const command=raw.replace(/^ +| +$/g,'');if(command){history.push(command);history=history.slice(-16);}cursor=history.length;
  let result;
  switch(command){
  case 'clear':clearOutput();return;

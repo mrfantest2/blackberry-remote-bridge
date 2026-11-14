@@ -1,0 +1,65 @@
+{
+  "classification": "desktop Chrome browser QA; no native or physical handset testing",
+  "checks": [
+    {
+      "name": "viewport 480 x 640; screen 480 x 640",
+      "pass": true
+    },
+    {
+      "name": "complete shell 480 x 640",
+      "pass": true
+    },
+    {
+      "name": "six modules plus More fit",
+      "pass": true
+    },
+    {
+      "name": "home ArrowDown focus",
+      "pass": true
+    },
+    {
+      "name": "terminal shortcut focuses input",
+      "pass": true
+    },
+    {
+      "name": "Enter runs allowlisted command",
+      "pass": true
+    },
+    {
+      "name": "malformed control rejected",
+      "pass": true
+    },
+    {
+      "name": "terminal output scrolls",
+      "pass": true
+    },
+    {
+      "name": "history button focuses input",
+      "pass": true
+    },
+    {
+      "name": "Escape restores home focus",
+      "pass": true
+    },
+    {
+      "name": "module 1 reachable",
+      "pass": true
+    },
+    {
+      "name": "module 2 reachable",
+      "pass": true
+    },
+    {
+      "name": "module 3 reachable",
+      "pass": true
+    },
+    {
+      "name": "module 4 reachable",
+      "pass": true
+    },
+    {
+      "name": "module 5 reachable",
+      "pass": true
+    }
+  ]
+}

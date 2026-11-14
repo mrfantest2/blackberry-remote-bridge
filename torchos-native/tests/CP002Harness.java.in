@@ -4,16 +4,18 @@ public class CP002Harness {
     static int count;
     static void check(boolean value, String why) { count++; if(!value) throw new AssertionError(why); }
     static class RecordStore {
-        static byte[] bytes; static boolean fail, failClose; static int closes, writes, reads, records=-1;
+        static byte[] bytes; static boolean fail, failClose, failWrite; static int closes, writes, reads, opens, records=-1;
+        static void reset() { bytes=null; fail=false; failClose=false; failWrite=false; closes=0; writes=0; reads=0; opens=0; records=-1; }
         static RecordStore openRecordStore(String name, boolean create) throws Exception {
             check(name.equals("TorchOS_CP002"), "isolated RMS name");
+            opens++;
             if(fail) throw new Exception("denied"); return new RecordStore();
         }
         int getNumRecords() { return records>=0?records:(bytes==null?0:1); }
         int getRecordSize(int id) { return bytes.length; }
         byte[] getRecord(int id) { reads++;return bytes; }
-        int addRecord(byte[] b,int o,int n) { bytes=b; writes++; return 1; }
-        void setRecord(int id,byte[] b,int o,int n) { bytes=b; writes++; }
+        int addRecord(byte[] b,int o,int n) throws Exception { if(failWrite)throw new Exception("write denied"); bytes=b; writes++; return 1; }
+        void setRecord(int id,byte[] b,int o,int n) throws Exception { if(failWrite)throw new Exception("write denied"); bytes=b; writes++; }
         void closeRecordStore() throws Exception { closes++; if(failClose)throw new Exception("close failure"); }
     }
     @@TerminalModel@@
@@ -24,6 +26,25 @@ public class CP002Harness {
     static void bad(byte[] b) throws Exception {
         try { NoteCodec.decode(b); throw new AssertionError("corrupt accepted"); }
         catch(IOException expected) { count++; }
+    }
+    static boolean cleanHistory(TerminalModel t) {
+        for(int i=0;i<t.historyCount;i++) {
+            String entry=t.history[i];
+            for(int j=0;j<entry.length();j++) {
+                char c=entry.charAt(j);
+                if(c<0x20||c==0x7F) return false;
+            }
+        }
+        return true;
+    }
+    static void rejectControl(TerminalModel t, String raw, String label) {
+        int historyBefore=t.historyCount;
+        String outputBefore=t.output;
+        String result=t.execute(raw);
+        check(result.indexOf("Rejected")>=0,label+" rejected");
+        check(t.historyCount==historyBefore,label+" not stored");
+        check(t.output.indexOf("local> ",outputBefore.length())<0,label+" not echoed raw");
+        check(cleanHistory(t),label+" history clean");
     }
     public static void main(String[] args) throws Exception {
         String mode=args[0];
@@ -76,6 +97,103 @@ public class CP002Harness {
             RecordStore.records=-1;RecordStore.failClose=true;s=new NoteStore();s.load();check(s.error.length()>0&&!s.save(n),"load close failure blocks saves");
             RecordStore.failClose=false;s=new NoteStore();s.load();RecordStore.failClose=true;
             check(!s.save(n)&&s.error.length()>0,"save close failure is unconfirmed");
+        } else if(mode.equals("store_revalidate")) {
+            RecordStore.reset();
+            NoteStore s=new NoteStore();NoteData n=s.load();n.note="baseline";check(s.save(n),"baseline save");
+            byte[] corrupt=new byte[]{1,2,3};RecordStore.bytes=corrupt;
+            int reads=RecordStore.reads,writes=RecordStore.writes;
+            check(!s.save(n),"corrupt after load blocks overwrite");
+            check(RecordStore.bytes==corrupt,"corrupt record identity preserved");
+            check(RecordStore.writes==writes,"corrupt no write");
+            check(RecordStore.reads==reads+1,"corrupt existing record read once");
+            check(s.error.length()>0,"corrupt visible error");
+            int blockedOpens=RecordStore.opens;
+            check(!s.save(n)&&RecordStore.writes==writes,"corrupt state stays blocked");
+            check(RecordStore.opens==blockedOpens,"corrupt state does not reopen");
+            RecordStore.reset();
+            s=new NoteStore();n=s.load();n.note="baseline";check(s.save(n),"second baseline save");
+            byte[] oversize=new byte[2049];RecordStore.bytes=oversize;
+            reads=RecordStore.reads;writes=RecordStore.writes;
+            check(!s.save(n),"oversize after load blocks overwrite");
+            check(RecordStore.bytes==oversize,"oversize record identity preserved");
+            check(RecordStore.writes==writes,"oversize no write");
+            check(RecordStore.reads==reads,"oversize not read or allocated");
+            check(s.error.length()>0,"oversize visible error");
+            blockedOpens=RecordStore.opens;
+            check(!s.save(n)&&RecordStore.writes==writes,"oversize state stays blocked");
+            check(RecordStore.opens==blockedOpens,"oversize state does not reopen");
+            RecordStore.reset();
+            s=new NoteStore();check(s.load().note.equals(""),"third store empty");
+            n.note="baseline";check(s.save(n),"third baseline save");
+            byte[] single=RecordStore.bytes;RecordStore.records=2;
+            reads=RecordStore.reads;writes=RecordStore.writes;
+            check(!s.save(n),"unexpected count after load blocks overwrite");
+            check(RecordStore.bytes==single,"unexpected count record identity preserved");
+            check(RecordStore.writes==writes,"unexpected count no write");
+            check(RecordStore.reads==reads,"unexpected count not read");
+            check(s.error.length()>0,"unexpected count visible error");
+            blockedOpens=RecordStore.opens;
+            check(!s.save(n)&&RecordStore.writes==writes,"unexpected count state stays blocked");
+            check(RecordStore.opens==blockedOpens,"unexpected count state does not reopen");
+        } else if(mode.equals("store_fail_closed")) {
+            RecordStore.reset();
+            NoteStore s=new NoteStore();NoteData n=s.load();n.note="valid";n.labels[0]="Owner";
+            RecordStore.fail=true;
+            check(!s.save(n),"open failure save rejected");
+            check(s.error.length()>0,"open failure visible");
+            RecordStore.fail=false;int opens=RecordStore.opens,writes=RecordStore.writes;
+            check(!s.save(n),"open failure blocks later save");
+            check(RecordStore.opens==opens,"blocked state does not reopen");
+            check(RecordStore.writes==writes,"blocked state does not write");
+            RecordStore.reset();
+            s=new NoteStore();n=s.load();n.note="valid";check(s.save(n),"write baseline");
+            RecordStore.failWrite=true;
+            check(!s.save(n),"write failure save rejected");
+            check(s.error.length()>0,"write failure visible");
+            RecordStore.failWrite=false;writes=RecordStore.writes;
+            check(!s.save(n)&&RecordStore.writes==writes,"write failure blocks later save");
+            RecordStore.reset();
+            s=new NoteStore();n=s.load();n.note="close";
+            RecordStore.failClose=true;
+            check(!s.save(n),"close failure not confirmed");
+            check(s.error.length()>0,"close failure visible");
+            check(RecordStore.writes==1,"close failure wrote once");
+            RecordStore.failClose=false;writes=RecordStore.writes;opens=RecordStore.opens;
+            check(!s.save(n),"close failure blocks second save");
+            check(RecordStore.writes==writes,"close failure no second write");
+            check(RecordStore.opens==opens,"close failure no reopen");
+            RecordStore.reset();
+            s=new NoteStore();n=s.load();n.note="valid";check(s.save(n),"invalid baseline");
+            byte[] before=RecordStore.bytes;writes=RecordStore.writes;opens=RecordStore.opens;
+            NoteData bad=new NoteData();bad.labels[0]=new String(new char[41]);
+            check(!s.save(bad),"invalid draft rejected");
+            check(RecordStore.bytes==before,"invalid draft preserves record");
+            check(RecordStore.writes==writes,"invalid draft no write");
+            check(RecordStore.opens==opens,"invalid draft no storage open");
+            check(s.error.length()>0,"invalid draft visible");
+            check(s.save(n),"invalid draft does not block valid retry");
+        } else if(mode.equals("controls")) {
+            TerminalModel t=new TerminalModel();
+            for(int c=0;c<0x20;c++) {
+                char control=(char)c;
+                rejectControl(t,control+"help","leading control "+c);
+                rejectControl(t,"help"+control,"trailing control "+c);
+                rejectControl(t,"hel"+control+"p","embedded control "+c);
+            }
+            char del=(char)0x7F;
+            rejectControl(t,del+"help","leading DEL");
+            rejectControl(t,"help"+del,"trailing DEL");
+            rejectControl(t,"hel"+del+"p","embedded DEL");
+            int historyBefore=t.historyCount;
+            check(t.execute(null).indexOf("Rejected")>=0,"null rejected");
+            check(t.historyCount==historyBefore,"null not stored");
+            check(cleanHistory(t),"null history clean");
+            check(t.execute("  help  ").indexOf("Rejected")<0,"surrounding ASCII spaces allowed");
+            check(t.history[t.historyCount-1].equals("help"),"spaces normalized out of history");
+            check(t.execute("  status  ").indexOf("disconnected")>=0,"spaced allowed command runs");
+            check(cleanHistory(t),"accepted history clean");
+            check(t.execute("\nhelp").indexOf("Rejected")>=0,"newline still rejected");
+            check(t.execute("help").indexOf("Rejected")<0,"terminal recovers after rejection");
         } else if(mode.equals("files")) {
             String[] bad={"../","..","/root/","a/b/","a\\b","a:b","%2e%2e/","","./","a\n"};
             for(int i=0;i<bad.length;i++) check(!safeChild(bad[i]),"unsafe name "+i);

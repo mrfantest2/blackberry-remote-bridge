@@ -22,6 +22,7 @@ class ReportPersistence(unittest.TestCase):
         print(result.stdout.strip())
 
     def test_roundtrip_and_record_bounds(self): self.run_mode('roundtrip')
+    def test_empty_report_roundtrip_and_limits(self): self.run_mode('empty')
     def test_corrupt_report_fails_closed(self): self.run_mode('corrupt')
     def test_io_and_close_failures_visible(self): self.run_mode('failure')
 

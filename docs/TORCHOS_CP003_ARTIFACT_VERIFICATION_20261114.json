@@ -1,0 +1,66 @@
+{
+  "classification": "Host packaging verification only; unsigned, not installed or physically tested",
+  "checks": [
+    "JAD COD/JAR URLs and actual sizes",
+    "JAD COD SHA-1 matches generated COD",
+    "JAD/ALX identity, version, entry module, fileset",
+    "COD magic and nonempty outputs",
+    "JAR CRC and TorchOS.class magic",
+    "Authentic RAPC No errors; three warnings"
+  ],
+  "java_class_version": [
+    0,
+    47
+  ],
+  "jad": {
+    "MIDlet-Name": "TorchOS",
+    "MIDlet-Version": "0.2.0",
+    "MIDlet-Vendor": "FanTest",
+    "MIDlet-Jar-URL": "TorchOS.jar",
+    "MIDlet-Jar-Size": "56216",
+    "MicroEdition-Profile": "MIDP-2.0",
+    "MicroEdition-Configuration": "CLDC-1.1",
+    "MIDlet-1": "TorchOS,,TorchOS",
+    "RIM-MIDlet-Flags-1": "0",
+    "Manifest-Version": "1.0",
+    "RIM-COD-URL": "TorchOS.cod",
+    "RIM-COD-Size": "23296",
+    "RIM-COD-Creation-Time": "1794626478",
+    "RIM-COD-Module-Name": "TorchOS",
+    "RIM-COD-Module-Dependencies": "net_rim_cldc",
+    "RIM-COD-SHA1": "ba 31 9f 0d ef 00 8d 9c dd 15 03 f3 45 f3 c6 a0 33 87 68 be"
+  },
+  "cso_inventory": [
+    "33000000=RIMAPPSA2",
+    "52424200=RIM Blackberry Apps API",
+    "52434900=RIM Crypto API - Internal",
+    "52435200=RIM Crypto API - RIM"
+  ],
+  "mandatory_csl_emitted": false,
+  "artifacts": {
+    "torchos-native/build/TorchOS.cod": {
+      "bytes": 23296,
+      "sha256": "31a916a3cbec455196d83f9145d1a45bb2bc700bb59a9be255b53beeed7221af"
+    },
+    "torchos-native/build/TorchOS.jar": {
+      "bytes": 56216,
+      "sha256": "9b1dbdde7371847e8c7ee8f6207dbb225f1a665f89490e71a22660baceb2a6b0"
+    },
+    "torchos-native/build/TorchOS.jad": {
+      "bytes": 480,
+      "sha256": "1f6dd3ede58563c3600a043dceb1f7f4eaa66dc67990723279f8d7083f58076c"
+    },
+    "torchos-native/TorchOS.alx": {
+      "bytes": 409,
+      "sha256": "08e95536e5cf5cd8c342c24c2158f96e102cd0f973a5e29e854f6d275ed988b8"
+    },
+    "torchos-native/src/TorchOS.java": {
+      "bytes": 33152,
+      "sha256": "3403ab9a1645d09e1de341e75032410d231ab69a107bd787d99092d1ee401665"
+    },
+    "torchos-native/preview/index.html": {
+      "bytes": 13086,
+      "sha256": "df9163f08ef55724617d462d9bc32688f785ac058b5c48d6d91b3df84412f0c9"
+    }
+  }
+}

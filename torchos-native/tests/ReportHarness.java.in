@@ -23,6 +23,11 @@ public final class ReportHarness {
         void closeRecordStore() throws IOException { closes++; if (rejectClose) throw new IOException("Closing denied"); }
     }
     @@ReportStore@@
+    static void bad(byte[] value) {
+        assertions++;
+        try { ReportStore.decode(value); throw new AssertionError("corrupt report accepted"); }
+        catch(IOException expected) { }
+    }
     public static void main(String[] args) throws Exception {
         String mode = args[0];
         if ("roundtrip".equals(mode)) {
@@ -63,6 +68,36 @@ public final class ReportHarness {
             ReportStore tooLong = new ReportStore();
             char[] chars = new char[385]; for (int i=0;i<chars.length;i++) chars[i]='x';
             check(!tooLong.save(new String(chars)), "length >384 rejected");
+        } else if ("empty".equals(mode)) {
+            ReportStore s = new ReportStore();
+            check(s.save(""), "empty report save accepted");
+            check(RecordStore.record != null && RecordStore.record.length == 7, "empty record is 7 bytes");
+            check(RecordStore.writes == 1, "one empty write");
+            ReportStore fresh = new ReportStore();
+            check(fresh.load().equals(""), "fresh load reads empty report");
+            check(fresh.error.length() == 0, "empty load has no error");
+            check(s.save("non-empty snapshot"), "replace empty report");
+            check(new ReportStore().load().equals("non-empty snapshot"), "replacement loads");
+            check(s.save(""), "replace back to empty");
+            check(new ReportStore().load().equals(""), "empty replacement loads");
+            check(RecordStore.writes == 3, "single-record replacements");
+            byte[] empty = RecordStore.record;
+            check(empty.length == 7, "stored empty record still 7 bytes");
+            check(ReportStore.decode(empty).equals(""), "empty decodes");
+            byte[] truncated = new byte[6]; System.arraycopy(empty, 0, truncated, 0, 6); bad(truncated);
+            byte[] trailing = new byte[8]; System.arraycopy(empty, 0, trailing, 0, 7); bad(trailing);
+            byte[] wrongVersion = new byte[7]; System.arraycopy(empty, 0, wrongVersion, 0, 7); wrongVersion[4] = 2; bad(wrongVersion);
+            byte[] wrongMagic = new byte[7]; System.arraycopy(empty, 0, wrongMagic, 0, 7); wrongMagic[0] = 0; bad(wrongMagic);
+            bad(new byte[1025]);
+            char[] max = new char[384]; for (int i=0;i<max.length;i++) max[i]='x';
+            check(s.save(new String(max)), "384-character report accepted");
+            check(new ReportStore().load().length() == 384, "384-character report roundtrip");
+            int writes = RecordStore.writes;
+            char[] wide = new char[384]; for (int i=0;i<wide.length;i++) wide[i]='\u4E2D';
+            ReportStore wideStore = new ReportStore();
+            check(!wideStore.save(new String(wide)), "1024-byte limit still rejects wide text");
+            check(RecordStore.writes == writes, "oversize report no write");
+            check(wideStore.error.length() > 0, "oversize report visible error");
         } else throw new AssertionError(mode);
         System.out.println(mode + ": " + assertions + " diagnostic RMS assertions passed (host double only)");
     }
