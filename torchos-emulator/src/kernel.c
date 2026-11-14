@@ -114,7 +114,7 @@ static void execute_command(const char *cmd) {
         uart_puts("Machine: ");
         uart_puts(hal_machine_label());
         uart_putc('\n');
-        uart_puts("Console: virtual PL011 UART\n");
+        uart_puts("Console: virtual PL011 UART (guest FDT discovered)\n");
         uart_puts("BlackBerry hardware: NOT CONNECTED\n");
         uart_puts("Storage, Wi-Fi, touchscreen and power: NOT IMPLEMENTED\n");
     } else if (same(cmd, "clear")) {
@@ -148,6 +148,10 @@ static void prompt(void) {
 }
 
 void kmain(void) {
+    /* Do not touch MMIO or print before the guest FDT validates. */
+    if (!hal_init()) {
+        for (;;) { __asm__ volatile("wfi"); }
+    }
     uart_puts("\nTorchOS CP005 — Independent ARM Research Boot\n");
     uart_puts("QEMU VIRTUAL MACHINE ONLY — NOT BLACKBERRY HARDWARE\n");
     uart_puts("No firmware, phone access, filesystem, network or remote commands.\n");
