@@ -21,6 +21,9 @@ struct node_state {
     uint8_t is_uart;
     uint8_t is_memory;
     uint8_t disabled;
+    uint8_t has_compatible;
+    uint8_t has_device_type;
+    uint8_t has_status;
 };
 
 static uint32_t be32(const uint8_t *p) {
@@ -73,8 +76,9 @@ int guest_fdt_parse(const void *dtb, size_t accessible_bytes,
     uint32_t root_address_cells = 0u, root_size_cells = 0u;
     uint8_t found_root_address = 0u, found_root_size = 0u;
     uint8_t found_uart = 0u, found_ram = 0u, ended = 0u;
+    uint8_t uart_nodes = 0u;
     const uint8_t *data = (const uint8_t *)dtb;
-    uint32_t total, struct_off, struct_size;
+    uint32_t total, struct_off, struct_size, reserve_off;
 
     if (out == NULL) return 0;
     result.uart_address = 0u;
@@ -89,6 +93,7 @@ int guest_fdt_parse(const void *dtb, size_t accessible_bytes,
     if (total < 56u || total > accessible_bytes || total > GUEST_FDT_LIMIT) return 0;
     struct_off = be32(data + 8u);
     strings_off = be32(data + 12u);
+    reserve_off = be32(data + 16u);
     strings_size = be32(data + 32u);
     struct_size = be32(data + 36u);
     if (be32(data + 20u) < 17u || be32(data + 24u) > be32(data + 20u)) return 0;
@@ -101,6 +106,27 @@ int guest_fdt_parse(const void *dtb, size_t accessible_bytes,
         !inside(be32(data + 16u), 16u, total)) return 0;
     if (struct_off < strings_off + strings_size &&
         strings_off < struct_off + struct_size) return 0;
+    /* CP006.4 handles FDT memreserve conservatively: accept only a
+     * terminating empty map. A real reserved range is unsupported here.
+     * Require the entire map to precede both FDT data sections.
+     */
+    if (reserve_off < 40u || reserve_off >= struct_off ||
+        reserve_off >= strings_off) return 0;
+    {
+        uint32_t entry = reserve_off;
+        uint8_t terminator = 0u;
+        while (entry < struct_off && entry < strings_off) {
+            if (!inside(entry, 16u, struct_off) ||
+                !inside(entry, 16u, strings_off)) return 0;
+            if (be32(data + entry) != 0u ||
+                be32(data + entry + 4u) != 0u ||
+                be32(data + entry + 8u) != 0u ||
+                be32(data + entry + 12u) != 0u) return 0;
+            terminator = 1u;
+            break;
+        }
+        if (!terminator) return 0;
+    }
     structure_end = struct_off + struct_size;
     pos = struct_off;
 
@@ -115,6 +141,9 @@ int guest_fdt_parse(const void *dtb, size_t accessible_bytes,
             while (p < structure_end && data[p] != 0u && p - pos <= 255u) ++p;
             if (p >= structure_end || p - pos > 255u) return 0;
             if (depth == 0u && p != pos) return 0;
+            if (depth == 1u &&
+                exact_string(data + pos, p - pos + 1u, "reserved-memory"))
+                return 0; /* Unsupported guest reserved regions fail closed. */
             stack[depth] = (struct node_state){0};
             ++depth;
             pos = align4(p + 1u);
@@ -143,11 +172,19 @@ int guest_fdt_parse(const void *dtb, size_t accessible_bytes,
                 }
             } else if (depth == 2u) {
                 if (property_name(strings, strings_size, name_off, "compatible")) {
+                    if (n->has_compatible) return 0;
+                    n->has_compatible = 1u;
                     if (string_list_has(data + pos, value_size, "arm,pl011")) n->is_uart = 1u;
                 } else if (property_name(strings, strings_size, name_off, "device_type")) {
+                    if (n->has_device_type) return 0;
+                    n->has_device_type = 1u;
                     if (exact_string(data + pos, value_size, "memory")) n->is_memory = 1u;
                 } else if (property_name(strings, strings_size, name_off, "status")) {
+                    if (n->has_status) return 0;
+                    n->has_status = 1u;
                     if (exact_string(data + pos, value_size, "disabled")) n->disabled = 1u;
+                    else if (!exact_string(data + pos, value_size, "okay") &&
+                             !exact_string(data + pos, value_size, "ok")) return 0;
                 } else if (property_name(strings, strings_size, name_off, "reg")) {
                     if (n->has_reg) return 0;
                     n->has_reg = 1u;
@@ -163,6 +200,9 @@ int guest_fdt_parse(const void *dtb, size_t accessible_bytes,
             uint32_t length;
             if (depth == 0u) return 0;
             n = &stack[depth - 1u];
+            if (depth == 2u && n->is_uart) {
+                if (++uart_nodes > 1u) return 0;
+            }
             if (depth == 2u && !n->disabled && (n->is_uart || n->is_memory)) {
                 if (!n->has_reg || !decode_range(data + n->reg_offset, n->reg_length,
                                                   &address, &length)) return 0;
@@ -192,6 +232,10 @@ int guest_fdt_parse(const void *dtb, size_t accessible_bytes,
     if (!ended || !found_root_address || !found_root_size ||
         root_address_cells != 2u || root_size_cells != 2u ||
         !found_uart || !found_ram) return 0;
+    /* This research image is linked for exactly 128 MiB at RAM
+     * 0x40000000; other maps require a separately verified build. */
+    if (result.ram_address != 0x40000000u ||
+        result.ram_size != 0x08000000u) return 0;
     *out = result;
     return 1;
 }
