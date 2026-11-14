@@ -1,0 +1,69 @@
+import java.io.*;
+public final class ReportHarness {
+    static int assertions;
+    static void check(boolean result, String name) { assertions++; if (!result) throw new AssertionError(name); }
+    static final class RecordStore {
+        static byte[] record;
+        static int writes, closes;
+        static boolean rejectOpen, rejectClose;
+        static RecordStore openRecordStore(String name, boolean create) throws IOException {
+            check("TorchOS_CP002_Report".equals(name), "dedicated report store");
+            if (rejectOpen) throw new IOException("Denied");
+            return new RecordStore();
+        }
+        int getNumRecords() { return record == null ? 0 : 1; }
+        int getRecordSize(int id) { return record.length; }
+        byte[] getRecord(int id) { return record; }
+        int addRecord(byte[] data, int offset, int len) {
+            record = new byte[len]; System.arraycopy(data, offset, record, 0, len); writes++; return 1;
+        }
+        void setRecord(int id, byte[] data, int offset, int len) {
+            record = new byte[len]; System.arraycopy(data, offset, record, 0, len); writes++;
+        }
+        void closeRecordStore() throws IOException { closes++; if (rejectClose) throw new IOException("Closing denied"); }
+    }
+    @@ReportStore@@
+    public static void main(String[] args) throws Exception {
+        String mode = args[0];
+        if ("roundtrip".equals(mode)) {
+            ReportStore s = new ReportStore();
+            check(s.load().indexOf("No locally saved") >= 0, "empty store");
+            check(s.save("TorchOS local report / test"), "first save");
+            check(s.load().equals("TorchOS local report / test"), "persistent reload");
+            check(s.save("Updated snapshot"), "replace prior report");
+            check(s.load().equals("Updated snapshot"), "latest snapshot");
+            check(RecordStore.writes == 2, "single-record updates");
+            check(RecordStore.record.length <= 1024, "byte bounds");
+            try { ReportStore.decode(null); throw new AssertionError("accepted null"); }
+            catch (IOException expected) { assertions++; }
+            try { ReportStore.decode(new byte[]{1,2,3}); throw new AssertionError("accepted truncated"); }
+            catch (IOException expected) { assertions++; }
+        } else if ("corrupt".equals(mode)) {
+            ReportStore s = new ReportStore();
+            RecordStore.record = new byte[]{0,1,2,3,4,5,6,7};
+            int before = RecordStore.writes;
+            check(!s.save("new"), "corrupt store blocks overwrite");
+            check(RecordStore.writes == before, "no write on corrupt store");
+            check(s.error.length() > 0, "visible error");
+            ReportStore again = new ReportStore();
+            check(again.load().indexOf("Report storage error") >= 0, "error on load");
+            check(!again.save("bad"), "load blocks later save");
+        } else if ("failure".equals(mode)) {
+            ReportStore s = new ReportStore();
+            RecordStore.rejectOpen = true;
+            check(!s.save("test"), "failed open");
+            check(s.error.indexOf("failed") >= 0, "failed open surfaced");
+            RecordStore.rejectOpen = false; RecordStore.record = null;
+            ReportStore closeCase = new ReportStore();
+            RecordStore.rejectClose = true;
+            check(!closeCase.save("test"), "close failure is not reported as success");
+            check(closeCase.error.length() > 0, "close error surfaced");
+            RecordStore.rejectClose = false;
+            check(!closeCase.save("again"), "closed-failure state fail closed");
+            ReportStore tooLong = new ReportStore();
+            char[] chars = new char[385]; for (int i=0;i<chars.length;i++) chars[i]='x';
+            check(!tooLong.save(new String(chars)), "length >384 rejected");
+        } else throw new AssertionError(mode);
+        System.out.println(mode + ": " + assertions + " diagnostic RMS assertions passed (host double only)");
+    }
+}

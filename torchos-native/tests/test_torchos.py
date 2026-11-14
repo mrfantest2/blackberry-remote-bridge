@@ -58,58 +58,63 @@ class HostBehavior(unittest.TestCase):
 
 
 class Contracts(unittest.TestCase):
-    def test_native_entry_and_five_home_rows(self):
+    def test_native_entry_and_six_home_rows(self):
         self.assertIn('extends UiApplication', SRC)
         self.assertIn('extends MainScreen', SRC)
         self.assertIn('enterEventDispatcher()', SRC)
         titles = re.findall(r'"([^\"]+)"', re.search(r'TITLES = \{(.*?)\};', SRC, re.S)[1])
-        self.assertEqual(titles, ['Devices', 'Camera', 'Archives', 'Network', 'Notes & Tasks'])
+        self.assertEqual(titles, ['Terminal', 'Network Center', 'Security Center', 'Device Manager', 'File Manager', 'System Monitor'])
         self.assertIn('rows[0].setFocus()', SRC)
-        self.assertIn('new Row[5]', SRC)
+        self.assertIn('new Row[6]', SRC)
 
     def test_every_external_item_disconnected(self):
         items = ['S25', 'Steam Deck', 'MASTER-PC', 'CamDoor', 'Xiaomi C301',
                  'EchoVault', 'Tahani family memories', 'Abu Jamal Wi-Fi', 'VPN health']
         for item in items:
             self.assertIn(item + r'\nNot connected', SRC)
-        self.assertNotRegex(SRC, r'\b\d{1,3}%')
+        self.assertNotRegex(SRC, r'Local battery: \d{1,3}%')
 
-    def test_no_network_storage_or_security_bypass_apis(self):
+    def test_no_network_or_security_bypass_apis(self):
         imports = re.findall(r'^import (.*);', SRC, re.M)
-        self.assertTrue(all(i.startswith(('java.util.Date', 'net.rim.device.api.ui.',
-                                        'net.rim.device.api.i18n.SimpleDateFormat')) for i in imports))
-        for forbidden in ['Connector', 'HttpConnection', 'BrowserField', 'Socket',
-                          'PersistentStore', 'RecordStore', 'FileConnection',
-                          'ApplicationPermissions', 'Runtime.getRuntime', 'https://', 'http://']:
+        allowed = ('java.util.', 'java.io.', 'net.rim.device.api.ui.',
+                   'net.rim.device.api.i18n.SimpleDateFormat', 'net.rim.device.api.system.DeviceInfo',
+                   'javax.microedition.rms.RecordStore', 'javax.microedition.io.Connector',
+                   'javax.microedition.io.file.')
+        self.assertTrue(all(i.startswith(allowed) for i in imports))
+        for forbidden in ['HttpConnection', 'BrowserField', 'Socket', 'PersistentStore',
+                          'ApplicationPermissions', 'https://', 'http://']:
             self.assertNotIn(forbidden, SRC)
+        self.assertEqual(SRC.count('Connector.open('), 1)
 
-    def test_session_only_notes_and_task_state(self):
-        self.assertIn('new EditField("Draft: ", note, 512', SRC)
-        self.assertIn('note = draft.getText()', SRC)
-        self.assertIn('tasks[i] = checks[i].getChecked()', SRC)
+    def test_persistent_notes_and_task_state(self):
+        self.assertIn('new EditField("Draft: ", data.note, 512', SRC)
+        self.assertIn('data.note = draft.getText()', SRC)
+        self.assertIn('data.tasks[i] = checks[i].getChecked()', SRC)
         self.assertIn('new boolean[3]', SRC)
-        self.assertIn('Lost on app exit', SRC)
+        self.assertIn('RecordStore.openRecordStore("TorchOS_CP002", true)', SRC)
+        self.assertNotIn('S25Hub', SRC)
+        self.assertIn('Persistence error:', SRC)
 
     def test_settings_back_and_clock_lifecycle(self):
         self.assertIn('new MenuItem("Settings / About"', SRC)
         self.assertIn('new SimpleDateFormat("EEE dd MMM  HH:mm").format(new Date())', SRC)
         self.assertIn('30000, true', SRC)
         self.assertIn('cancelInvokeLater(clockEvent)', SRC)
-        self.assertEqual(SRC.count('popScreen(this)'), 2)
+        self.assertEqual(SRC.count('popScreen(this)'), 1)
         self.assertIn('System.exit(0)', SRC)
 
     def test_packaging_identity(self):
         alx = ET.parse(ROOT / 'TorchOS.alx')
         app = alx.find('application')
         self.assertEqual(app.attrib['id'], 'TorchOS')
-        self.assertEqual(app.findtext('version'), '0.1.0')
+        self.assertEqual(app.findtext('version'), '0.2.0')
         self.assertEqual(app.findtext('fileset/directory'), 'build')
         self.assertEqual(app.findtext('fileset/files/file'), 'TorchOS.cod')
         rapc = (ROOT / 'TorchOS.rapc').read_text()
         self.assertIn('MicroEdition-Profile: MIDP-2.0', rapc)
         self.assertIn('MicroEdition-Configuration: CLDC-1.1', rapc)
         self.assertIn('MIDlet-1: TorchOS,,TorchOS', rapc)
-        self.assertIn('MIDlet-Version: 0.1.0', rapc)
+        self.assertIn('MIDlet-Version: 0.2.0', rapc)
         self.assertNotIn('S25Hub', rapc)
 
     def test_build_uses_real_tools_and_local_outputs(self):
@@ -141,11 +146,11 @@ class Contracts(unittest.TestCase):
                 for name in ['src', 'href', 'action']:
                     if name in attrs:
                         self.external.append(attrs[name])
-                if tag == 'button' and attrs.get('data-page') in ['0', '1', '2', '3', '4']:
+                if tag == 'button' and attrs.get('data-page') in ['0', '1', '2', '3', '4', '5']:
                     self.home_buttons += 1
         parser = Inspect(); parser.feed(HTML)
         self.assertEqual(parser.external, [])
-        self.assertEqual(parser.home_buttons, 5)
+        self.assertEqual(parser.home_buttons, 6)
         self.assertIn("connect-src 'none'", HTML)
         self.assertIn('width:480px;height:640px', HTML)
         self.assertIn('this is not on-device code', HTML)

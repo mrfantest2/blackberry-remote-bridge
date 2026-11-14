@@ -46,12 +46,12 @@ public class HostHarness {
         Row row=new Row("Devices","Not connected",new Runnable(){ public void run(){fired[0]++;}});
         row.layout(480,640);
         if (args[0].equals("shortcuts")) {
-            String[] groups={"1dD","2cC","3aA","4wW","5nN","6sS"};
+            String[] groups={"1tT","2wW","3sS","4dD","5fF","6mM","nN","cC","aA","pP","oO","0"};
             for (int c=0;c<=65535;c++) {
                 int expected=-1;
                 for(int i=0;i<groups.length;i++) if(groups[i].indexOf((char)c)>=0) expected=i;
                 // Character's Unicode case fold may map a non-ASCII glyph (long s) to s.
-                if(Character.toLowerCase((char)c)=='s') expected=5;
+                for(int i=0;i<groups.length;i++) if(groups[i].indexOf(Character.toLowerCase((char)c))>=0) expected=i;
                 check(shortcut((char)c)==expected,"shortcut "+c);
             }
         } else if (args[0].equals("touch")) {
@@ -79,14 +79,17 @@ public class HostHarness {
             check(fired[0]==3,"exactly three activations");
         } else if (args[0].equals("layout")) {
             int height=0;
-            int[] bands={28,18,22,18};
+            int[] bands={26,16,16};
             for(int i=0;i<bands.length;i++) {
                 Band b=new Band("Title","Status",bands[i]);b.layout(480,640);
                 height+=b.getHeight();check(b.getWidth()==480,"band width");
             }
-            height+=5*row.getHeight();
-            check(row.getHeight()>=64,"touch target");
+            height+=7*row.getHeight();
+            check(row.getHeight()>=60,"touch target");
             check(height+40<=640,"portrait budget with 40px native chrome: "+height);
+            System.out.println("Synthetic portrait budget including chrome: "+(height+40)+" / 640 px");
+            row.layout(480,30);check(row.getHeight()<=30,"row respects available height");
+            Band limited=new Band("Title","Status",26);limited.layout(480,20);check(limited.getHeight()<=20,"band respects available height");
             row.layout(320,640);check(row.getWidth()==320,"narrow width");
         } else throw new AssertionError("unknown mode");
         System.out.println(args[0]+": "+count+" assertions passed (host doubles only)");

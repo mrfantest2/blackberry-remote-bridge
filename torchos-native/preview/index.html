@@ -4,46 +4,133 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'">
-<title>TorchOS — design preview only</title>
+<title>TorchOS CP002 — offline preview</title>
 <style>
-*{box-sizing:border-box}body{margin:0;padding:24px;background:#080f16;color:#edf4f7;font:18px system-ui,sans-serif}aside{max-width:480px;margin:0 auto 16px;color:#b9cbd6;font-size:15px}.shell{width:480px;height:640px;max-width:100%;margin:auto;background:#101d28;display:flex;flex-direction:column;border:1px solid #2d414f}header{padding:14px 16px 10px;display:flex;justify-content:space-between;align-items:baseline}h1{font-size:28px;margin:0}small,.accent{color:#82e3c2}small{font-size:14px}.status{padding:8px 16px;font-size:18px;border-bottom:1px solid #2d414f}.status span{float:right;color:#82e3c2}.intro{padding:16px}.intro strong{font-size:22px}.intro p{margin:6px 0 0;color:#b9cbd6;font-size:18px}nav{flex:1}button{font:inherit;color:inherit;cursor:pointer}nav button{width:100%;height:64px;text-align:left;background:transparent;border:0;border-bottom:1px solid #2d414f;border-left:5px solid transparent;padding:6px 16px 6px 11px;display:block}button:focus-visible,nav button:focus{outline:0;border-left-color:#82e3c2;background:#244b57}nav b{display:block;font-size:23px}nav span{display:block;color:#b9cbd6;font-size:18px;margin-top:3px}footer{padding:10px 16px;font-size:15px;color:#b9cbd6}footer button,#back{background:#244b57;border:1px solid #82e3c2;padding:6px 10px;margin-bottom:6px}footer p{margin:2px 0}#detail{flex:1;padding:16px;overflow:auto}#detail h2{font-size:24px}#detail p{white-space:pre-line;line-height:1.5} [hidden]{display:none!important}
+*{box-sizing:border-box}body{margin:0;padding:20px;background:#080f16;color:#edf4f7;font:18px system-ui,sans-serif}aside{max-width:480px;margin:0 auto 16px;color:#b9cbd6;font-size:14px;line-height:1.5}.shell{width:480px;height:640px;margin:auto;background:#101d28;border:1px solid #2d414f;display:flex;flex-direction:column;overflow:hidden}header{height:62px;flex-shrink:0;padding:8px 16px}h1{font-size:26px;margin:0}small{font-size:14px;color:#82e3c2}.status{height:52px;flex-shrink:0;padding:5px 16px;border-bottom:1px solid #2d414f;font-size:16px}.status span{display:block;color:#82e3c2}#home{flex:1;min-height:0;overflow:auto}button,input,textarea{font:inherit}button{color:inherit;cursor:pointer}nav button{display:block;width:100%;height:60px;text-align:left;background:transparent;border:0;border-bottom:1px solid #2d414f;border-left:5px solid transparent;padding:5px 16px 5px 11px}nav b{display:block;font-size:21px}nav span{display:block;font-size:16px;color:#b9cbd6}button:focus-visible,input:focus-visible,textarea:focus-visible,#output:focus-visible{outline:2px solid #56d9ee;outline-offset:-3px}nav button:focus{background:#244b57;border-left-color:#82e3c2}footer{height:62px;flex-shrink:0;padding:7px 16px;color:#b9cbd6;font-size:16px;border-top:1px solid #2d414f}footer p{margin:2px 0}#detail{flex:1;min-height:0;overflow:auto;padding:12px 16px}h2{font-size:24px;margin:12px 0}#copy{white-space:pre-line;line-height:1.5}#detail button{background:#244b57;border:1px solid #82e3c2;padding:8px 10px;margin:4px 2px;min-height:40px}#output{height:190px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding:10px;background:#08151d;color:#82e3c2;font:16px monospace}label{display:block;margin:10px 0}input[type=text],textarea{display:block;width:100%;background:#fff;color:#101d28;padding:8px;border:1px solid #56d9ee}textarea{height:100px;resize:vertical}#saved{color:#82e3c2} [hidden]{display:none!important}
+/* At the actual 480x640 target, show the complete shell before the preview notice. */
+body{display:flex;flex-direction:column;align-items:center;padding:0}
+.shell{order:0;flex-shrink:0}
+aside{order:1;margin:12px auto 16px;padding:0 12px}
+@media(min-width:520px){body{padding:20px}}
 </style>
 </head>
 <body>
-<aside>480 × 640 HTML design preview. Illustrates visual language only; this is not on-device code. No network requests or hardware connection.</aside>
-<main class="shell" aria-label="TorchOS design preview">
-<header><h1>TorchOS</h1><small>NATIVE SHELL 0.1</small></header>
-<div class="status"><time id="clock">Local time</time><span>Offline / Preview</span></div>
-<div class="intro" id="intro"><strong>Your space. Within reach.</strong><p>External services: Not connected</p></div>
-<nav id="home" aria-label="Home sections">
-<button data-page="0"><b>1 &nbsp;Devices</b><span>S25 / Steam Deck / MASTER-PC</span></button>
-<button data-page="1"><b>2 &nbsp;Camera</b><span>CamDoor / Xiaomi C301</span></button>
-<button data-page="2"><b>3 &nbsp;Archives</b><span>EchoVault / Tahani memories</span></button>
-<button data-page="3"><b>4 &nbsp;Network</b><span>Abu Jamal Wi-Fi / VPN health</span></button>
-<button data-page="4"><b>5 &nbsp;Notes &amp; Tasks</b><span>Local draft / session checklist</span></button>
+<aside>480 × 640 interactive HTML preview; this is not on-device code. No requests or hardware access. Native notes use RMS; preview notes are session only and disappear on reload.</aside>
+<main class="shell" aria-label="TorchOS CP002 offline preview">
+<header><h1>TorchOS</h1><small>POCKET WORKSTATION / CP002</small></header>
+<div class="status"><time id="clock">Local time</time><span>Offline / Preview · remote disconnected</span></div>
+<div id="home">
+<nav id="primary" aria-label="Six primary modules">
+<button data-page="0"><b>1 &nbsp;Terminal</b><span>Local commands / offline</span></button>
+<button data-page="1"><b>2 &nbsp;Network Center</b><span>Capabilities unavailable / no probes</span></button>
+<button data-page="2"><b>3 &nbsp;Security Center</b><span>Safe local diagnostics</span></button>
+<button data-page="3"><b>4 &nbsp;Device Manager</b><span>Owner labels / remote offline</span></button>
+<button data-page="4"><b>5 &nbsp;File Manager</b><span>Read-only local folders</span></button>
+<button data-page="5"><b>6 &nbsp;System Monitor</b><span>Battery / app runtime memory</span></button>
+<button data-page="11"><b>0 &nbsp;More</b><span>Notes / CamDoor / Archives / Projects</span></button>
 </nav>
-<section id="detail" hidden><button id="back">Back to Home</button><h2 id="title"></h2><p id="copy"></p></section>
-<footer><button data-page="5">Settings / About</button><p>1–5 / D C A W N · S Settings · arrows + Enter</p><p>Preview on stock OS7 · no remote control</p></footer>
+</div>
+<section id="detail" hidden aria-labelledby="title">
+<button id="back">Back</button><h2 id="title"></h2><p id="copy"></p>
+<section id="terminal" hidden aria-label="Local offline terminal">
+<pre id="output" tabindex="0" role="log" aria-live="polite" aria-label="Scrollable local terminal output"></pre>
+<label for="command">local&gt; <input id="command" type="text" maxlength="96" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+<div><button id="run">Run</button><button id="previous">Previous command</button><button id="next">Next command</button><button id="help">Help</button><button id="clear">Clear</button></div>
+</section>
+<section id="notes" hidden aria-label="Session notes demo">
+<p>Native: local RMS persistence. Preview: session only; reload discards all edits.</p>
+<label for="draft">Draft (512 characters)<textarea id="draft" maxlength="512"></textarea></label>
+<label><input type="checkbox" id="task0"> Plan device pairing</label>
+<label><input type="checkbox" id="task1"> Review archive access</label>
+<label><input type="checkbox" id="task2"> Check integration roadmap</label>
+<label for="label0">Owner label 1<input id="label0" type="text" maxlength="40"></label>
+<label for="label1">Owner label 2<input id="label1" type="text" maxlength="40"></label>
+<label for="label2">Owner label 3<input id="label2" type="text" maxlength="40"></label>
+<button id="save">Save session</button><p id="saved" role="status"></p>
+</section>
+<nav id="secondary" hidden aria-label="Secondary modules">
+<button data-page="6"><b>Notes &amp; Tasks</b><span>Local RMS in native / session preview</span></button>
+<button data-page="7"><b>CamDoor</b><span>Not connected</span></button>
+<button data-page="8"><b>EchoVault / Tahani</b><span>Not connected</span></button>
+<button data-page="9"><b>Project Monitor</b><span>Offline / remote status unavailable</span></button>
+<button data-page="10"><b>Settings / About</b><span>Capabilities and keyboard help</span></button>
+</nav>
+</section>
+<footer><p>1–6 / T W S D F M · 0 More · N Notes</p><p>O About · arrows + Enter · Escape Back</p></footer>
 </main>
 <script>
 'use strict';
 const pages = [
-['Devices','S25 — Not connected\nSteam Deck — Not connected\nMASTER-PC — Not connected\n\nNo battery readings or remote actions.'],
-['Camera','CamDoor — Not connected\nXiaomi C301 — Not connected\n\nNo camera feed or camera controls.'],
-['Archives','EchoVault — Not connected\nTahani family memories — Not connected\n\nNo private archive data is bundled.'],
-['Network','Abu Jamal Wi-Fi — Not connected\nVPN health — Not connected\n\nProject labels only. No network probes.'],
-['Notes & Tasks','The native app has a 512-character draft and session checklist.\n\nThis HTML page illustrates the design only. Notes are not editable here.'],
-['Settings / About','TorchOS Shell 0.1\nNative Java launcher preview on stock OS7.\n\nNo firmware replacement, pairing, camera feed, or remote control. Native notes are lost on app exit.']
+['Terminal','Local allowlist only. No shell or remote execution.'],
+['Network Center','Network capabilities unavailable. No verified local radio diagnostics in CP002. No probes or settings changes.\nAbu Jamal Wi-Fi — Not connected\nVPN health — Not connected'],
+['Security Center','Native: local battery and Java app runtime snapshot; RMS errors visible. Checksums disabled: no hashing workflow implemented.\nPreview: hardware diagnostics unavailable. No scans or exploitation.'],
+['Device Manager','Local battery unavailable in preview.\nS25 — Not connected\nSteam Deck — Not connected\nMASTER-PC — Not connected\nEdit owner labels in Notes & Tasks. No device discovery or remote controls.'],
+['File Manager','Preview has no filesystem access. Native uses read-only JSR75 root/folder listings, up to 64 entries / 8 levels, subject to permission. Errors appear in the native UI.\nNo writes, deletion, rename or file content reads.'],
+['System Monitor','Hardware readings unavailable in preview.\nNative shows local DeviceInfo battery, Java app runtime memory (not total system RAM) and app elapsed time. Reopen native page to refresh. CPU load unavailable.'],
+['Notes & Tasks','Bounded draft, three tasks and three owner labels.'],
+['CamDoor','CamDoor — Not connected\nXiaomi C301 — Not connected\nNo camera feed or controls.'],
+['EchoVault / Tahani','EchoVault — Not connected\nTahani family memories — Not connected\nNo private archive data bundled or synchronized.'],
+['Project Monitor','Offline / remote project status unavailable. No polling or remote actions.'],
+['Settings / About','TorchOS CP002 / 0.2.0. Native BlackBerry OS7 shell, not Linux or firmware.\nNative transport not implemented. Gateway is a read-only contract prototype only; modern TLS on the handset is unverified.\nNative: dedicated versioned RMS, explicit Save and save on Back. Preview: session only. Terminal history is session only in both.\nHome: 1–6 / T W S D F M. N Notes, C CamDoor, A Archives, P Projects, O About, 0 More. Escape returns. Terminal: Enter submits; native has Show keyboard menu.'],
+['More / secondary','Local notes and disconnected project modules.']
 ];
-const home=document.getElementById('home'), detail=document.getElementById('detail'), intro=document.getElementById('intro');
-let previous=0;
-function openPage(i){previous=i;document.getElementById('title').textContent=pages[i][0];document.getElementById('copy').textContent=pages[i][1];home.hidden=true;intro.hidden=true;detail.hidden=false;document.getElementById('back').focus();}
-function back(){home.hidden=false;intro.hidden=false;detail.hidden=true;document.querySelector('[data-page="'+previous+'"]').focus();}
+const el=id=>document.getElementById(id);
+const home=el('home'),detail=el('detail');
+let current=-1, stack=[], history=[], cursor=0;
+let output='TorchOS local terminal. Type help. Remote services: disconnected.\n';
+const noteState={draft:'',tasks:[false,false,false],labels:['','','']};
+function render(i){
+ current=i;home.hidden=i!==-1;detail.hidden=i===-1;
+ if(i===-1)return;
+ el('title').textContent=pages[i][0];el('copy').textContent=pages[i][1];
+ el('terminal').hidden=i!==0;el('notes').hidden=i!==6;el('secondary').hidden=i!==11;
+ if(i===0){el('output').textContent=output;el('command').focus();}
+ else if(i===6){el('draft').value=noteState.draft;for(let j=0;j<3;j++){el('task'+j).checked=noteState.tasks[j];el('label'+j).value=noteState.labels[j];}el('back').focus();}
+ else {if(i===3)el('copy').textContent+='\n'+noteState.labels.map((label,j)=>'Owner label '+(j+1)+': '+(label||'(empty)')+' — Offline / remote status unavailable').join('\n');el('back').focus();}
+}
+function openPage(i){if(!Number.isInteger(i)||i<0||i>=pages.length)return;stack.push(current);render(i);}
+function back(){if(current===6)saveNotes();const old=current;render(stack.length?stack.pop():-1);const focus=current===-1?(old<6?old:11):old;document.querySelector('[data-page="'+focus+'"]').focus();}
+function append(value){output=(output+value).slice(-4096);el('output').textContent=output;el('output').scrollTop=el('output').scrollHeight;}
+function execute(raw){
+ if(raw.length>96){append('Rejected: input limit is 96 characters.\n');return;}
+ const command=raw.trim();if(command){history.push(command);history=history.slice(-16);}cursor=history.length;
+ let result;
+ switch(command){
+ case 'clear':clearOutput();return;
+ case 'help':result='Local only: help date about clear status history notes files. No arguments or shell execution.';break;
+ case 'date':result='Local preview clock: '+new Date().toString();break;
+ case 'about':result='TorchOS CP002 / stock OS7. Offline pocket workstation.';break;
+ case 'status':result='Local terminal ready. Remote services: disconnected. Native transport not implemented.';break;
+ case 'history':result='Session history:\n'+history.map((value,j)=>(j+1)+' '+value).join('\n');break;
+ case 'notes':result='Open Notes & Tasks from Home (N or More) for local RMS notes.';break;
+ case 'files':result='Open File Manager from Home (5) for read-only local folders; permission required.';break;
+ default:result='Rejected: only help date about clear status history notes files are allowed. No arguments or shell execution.';
+ }
+ append('local> '+command+'\n'+result+'\n');
+}
+function submit(){execute(el('command').value);el('command').value='';el('command').focus();}
+function previous(){if(cursor>0)cursor--;el('command').value=history[cursor]||'';el('command').focus();}
+function next(){if(cursor<history.length)cursor++;el('command').value=history[cursor]||'';el('command').focus();}
+function clearOutput(){output='';el('output').textContent='';}
+function saveNotes(){noteState.draft=el('draft').value.slice(0,512);for(let j=0;j<3;j++){noteState.tasks[j]=el('task'+j).checked;noteState.labels[j]=el('label'+j).value.slice(0,40);}el('saved').textContent='Saved in preview session only; reload discards edits.';}
 document.querySelectorAll('[data-page]').forEach(button=>button.addEventListener('click',()=>openPage(Number(button.dataset.page))));
-document.getElementById('back').addEventListener('click',back);
-document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!detail.hidden){back();return;}if(home.hidden)return;const keys={'1':0,d:0,'2':1,c:1,'3':2,a:2,'4':3,w:3,'5':4,n:4,'6':5,s:5};const i=keys[event.key.toLowerCase()];if(i!==undefined){event.preventDefault();openPage(i);}else if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();const buttons=Array.from(home.querySelectorAll('button'));let index=buttons.indexOf(document.activeElement);index=Math.max(0,Math.min(4,index+(event.key==='ArrowDown'?1:-1)));buttons[index].focus();}});
-function clock(){document.getElementById('clock').textContent=new Date().toLocaleString(undefined,{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}
-clock();setInterval(clock,30000);home.querySelector('button').focus();
+el('back').addEventListener('click',back);el('run').addEventListener('click',submit);
+el('previous').addEventListener('click',previous);el('next').addEventListener('click',next);
+el('help').addEventListener('click',()=>execute('help'));el('clear').addEventListener('click',()=>execute('clear'));el('save').addEventListener('click',saveNotes);
+el('command').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();submit();}});
+document.addEventListener('keydown',event=>{
+ if(event.key==='Escape'&&current!==-1){event.preventDefault();back();return;}
+ if(current!==-1)return;
+ const keys={'1':0,t:0,'2':1,w:1,'3':2,s:2,'4':3,d:3,'5':4,f:4,'6':5,m:5,n:6,c:7,a:8,p:9,o:10,'0':11};
+ const i=keys[event.key.toLowerCase()];
+ if(i!==undefined){event.preventDefault();openPage(i);}
+ else if(event.key==='ArrowDown'||event.key==='ArrowUp'){
+  event.preventDefault();const buttons=Array.from(home.querySelectorAll('button'));let index=buttons.indexOf(document.activeElement);
+  index=Math.max(0,Math.min(buttons.length-1,index+(event.key==='ArrowDown'?1:-1)));buttons[index].focus();
+ }
+});
+function clock(){el('clock').textContent=new Date().toLocaleString(undefined,{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}
+clock();setInterval(clock,30000);document.querySelector('[data-page="0"]').focus();
 </script>
 </body>
 </html>

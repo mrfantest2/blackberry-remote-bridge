@@ -1,0 +1,50 @@
+"""Execute production model/codec/store with host RMS doubles; never device QA."""
+import subprocess
+import unittest
+from test_torchos import ROOT, SRC, BUILD, JDK, fragment
+
+
+class CP002Behavior(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        BUILD.mkdir(parents=True, exist_ok=True)
+        harness = (ROOT / 'tests/CP002Harness.java.in').read_text()
+        for name in ['TerminalModel', 'NoteData', 'NoteCodec', 'NoteStore']:
+            harness = harness.replace('@@' + name + '@@', fragment('static final class ' + name))
+        harness = harness.replace('@@CHILD@@', fragment('static boolean safeChild('))
+        (BUILD / 'CP002Harness.java').write_text(harness)
+        subprocess.run([str(JDK / 'bin/javac'), '-d', str(BUILD), str(BUILD / 'CP002Harness.java')], check=True)
+
+    def run_mode(self, mode):
+        result = subprocess.run([str(JDK / 'bin/java'), '-cp', str(BUILD), 'CP002Harness', mode], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        print(result.stdout.strip())
+
+    def test_terminal_allowlist_offline_and_injection(self): self.run_mode('terminal')
+    def test_terminal_history_and_output_bounds(self): self.run_mode('bounds')
+    def test_rms_roundtrip_and_corrupt_bounds(self): self.run_mode('codec')
+    def test_rms_failure_visible_and_no_corrupt_overwrite(self): self.run_mode('store')
+    def test_file_child_traversal_rejection(self): self.run_mode('files')
+
+
+class CP002Contracts(unittest.TestCase):
+    def test_file_api_is_read_only_and_bounded(self):
+        self.assertIn('FileSystemRegistry.listRoots()', SRC)
+        self.assertIn('Connector.open(url, Connector.READ)', SRC)
+        self.assertIn('count < 64', SRC)
+        self.assertIn('depth >= 8', SRC)
+        for method in ['openOutputStream', '.delete(', '.rename(', '.mkdir(', '.create(', '.setWritable(']:
+            self.assertNotIn(method, SRC)
+
+    def test_terminal_native_editable_and_keyboard(self):
+        for token in ['new EditField("local> "', 'Field.FOCUSABLE | Field.READONLY', 'TerminalModel.INPUT_LIMIT', 'VirtualKeyboard.SHOW', '"Previous command"', '"Next command"', '"Help"', '"Clear"', '"Run"']:
+            self.assertIn(token, SRC)
+        self.assertNotIn('exec(', SRC)
+        self.assertNotIn('HttpConnection', SRC)
+
+    def test_diagnostics_honest(self):
+        for token in ['DeviceInfo.getBatteryLevel()', 'Runtime.getRuntime().freeMemory()', 'app runtime', 'Checksums disabled', 'Network capabilities unavailable', 'Native transport not implemented']:
+            self.assertIn(token, SRC)
+
+
+if __name__ == '__main__': unittest.main(verbosity=2)

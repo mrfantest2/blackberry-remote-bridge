@@ -1,0 +1,86 @@
+import java.io.*;
+import java.util.Date;
+public class CP002Harness {
+    static int count;
+    static void check(boolean value, String why) { count++; if(!value) throw new AssertionError(why); }
+    static class RecordStore {
+        static byte[] bytes; static boolean fail, failClose; static int closes, writes, reads, records=-1;
+        static RecordStore openRecordStore(String name, boolean create) throws Exception {
+            check(name.equals("TorchOS_CP002"), "isolated RMS name");
+            if(fail) throw new Exception("denied"); return new RecordStore();
+        }
+        int getNumRecords() { return records>=0?records:(bytes==null?0:1); }
+        int getRecordSize(int id) { return bytes.length; }
+        byte[] getRecord(int id) { reads++;return bytes; }
+        int addRecord(byte[] b,int o,int n) { bytes=b; writes++; return 1; }
+        void setRecord(int id,byte[] b,int o,int n) { bytes=b; writes++; }
+        void closeRecordStore() throws Exception { closes++; if(failClose)throw new Exception("close failure"); }
+    }
+    @@TerminalModel@@
+    @@NoteData@@
+    @@NoteCodec@@
+    @@NoteStore@@
+    @@CHILD@@
+    static void bad(byte[] b) throws Exception {
+        try { NoteCodec.decode(b); throw new AssertionError("corrupt accepted"); }
+        catch(IOException expected) { count++; }
+    }
+    public static void main(String[] args) throws Exception {
+        String mode=args[0];
+        if(mode.equals("terminal")) {
+            TerminalModel t=new TerminalModel();
+            String[] allowed={"help","date","about","status","history","notes","files"};
+            for(int i=0;i<allowed.length;i++) check(t.execute(allowed[i]).indexOf("Rejected")<0,"allowed "+allowed[i]);
+            String[] denied={"sh","root","status; reboot","help\nfiles","HELP","notes x","$(id)",""};
+            for(int i=0;i<denied.length;i++) check(t.execute(denied[i]).indexOf("Rejected")>=0,"rejected "+denied[i]);
+            check(t.execute("status").indexOf("disconnected")>=0,"remote honest");
+            check(t.execute("notes").indexOf("Notes & Tasks")>=0,"notes guidance");
+            t.execute("clear"); check(t.output.length()==0,"clear output");
+        } else if(mode.equals("bounds")) {
+            TerminalModel t=new TerminalModel();
+            for(int i=0;i<200;i++) t.execute("help");
+            check(t.output.length()<=4096,"output bounded");check(t.historyCount==16,"history bounded");
+            for(int i=0;i<20;i++) check(t.previous().equals("help"),"previous bounded");
+            for(int i=0;i<20;i++) t.next(); check(t.next().equals(""),"history ends empty");
+            int n=t.historyCount; StringBuffer longInput=new StringBuffer();
+            for(int i=0;i<97;i++) longInput.append('a');
+            check(t.execute(longInput.toString()).indexOf("Rejected")>=0,"oversized rejected");
+            check(t.historyCount==n,"oversized not stored");
+        } else if(mode.equals("codec")) {
+            NoteData n=new NoteData();check(n.note.equals(""),"empty start");
+            n.note="hello\n\u0645\u0631\u062d\u0628\u0627";n.tasks[1]=true;n.labels[0]="My device";
+            byte[] b=NoteCodec.encode(n);NoteData d=NoteCodec.decode(b);
+            check(d.note.equals(n.note)&&d.tasks[1]&&d.labels[0].equals("My device"),"roundtrip");
+            for(int i=0;i<b.length;i++){byte[] cut=new byte[i];System.arraycopy(b,0,cut,0,i);bad(cut);}
+            byte[] extra=new byte[b.length+1];System.arraycopy(b,0,extra,0,b.length);bad(extra);
+            b[0]=0;bad(b);bad(new byte[2049]);
+            n.note=new String(new char[513]);try{NoteCodec.encode(n);throw new AssertionError("long note");}catch(IOException expected){count++;}
+            n.note="";n.labels[0]=new String(new char[41]);try{NoteCodec.encode(n);throw new AssertionError("long label");}catch(IOException expected){count++;}
+            n.note="";n.labels[0]="";b=NoteCodec.encode(n);
+            b[4]=2;bad(b);b[4]=1;b[7]=2;bad(b);
+            n.note=new String(new char[512]).replace('\0','\u0645');n.labels[0]=new String(new char[40]).replace('\0','\u0645');
+            check(NoteCodec.decode(NoteCodec.encode(n)).note.equals(n.note),"maximum Unicode note roundtrip");
+        } else if(mode.equals("store")) {
+            NoteStore s=new NoteStore();NoteData n=s.load();check(n.note.equals(""),"empty store");
+            n.note="saved";check(s.save(n),"save succeeds");check(s.load().note.equals("saved"),"load succeeds");
+            RecordStore.bytes=new byte[]{1,2,3};int writes=RecordStore.writes;
+            check(s.load().note.equals(""),"corrupt not loaded");check(s.error.length()>0,"visible error");
+            check(!s.save(n)&&RecordStore.writes==writes,"corrupt never overwritten");
+            RecordStore.fail=true;s=new NoteStore();s.load();check(s.error.length()>0,"read denied visible");check(!s.save(n),"denied save");
+            RecordStore.fail=false;RecordStore.bytes=null;s=new NoteStore();s.load();RecordStore.fail=true;
+            check(!s.save(n)&&s.error.length()>0,"write denied visible");
+            check(RecordStore.closes>=4,"stores closed");
+            RecordStore.fail=false;RecordStore.bytes=new byte[2049];s=new NoteStore();int reads=RecordStore.reads;s.load();
+            check(RecordStore.reads==reads,"oversized record not allocated or read");check(!s.save(n),"oversized record blocks save");
+            RecordStore.bytes=null;RecordStore.records=2;s=new NoteStore();s.load();check(!s.save(n),"unexpected records preserved");
+            RecordStore.records=-1;RecordStore.failClose=true;s=new NoteStore();s.load();check(s.error.length()>0&&!s.save(n),"load close failure blocks saves");
+            RecordStore.failClose=false;s=new NoteStore();s.load();RecordStore.failClose=true;
+            check(!s.save(n)&&s.error.length()>0,"save close failure is unconfirmed");
+        } else if(mode.equals("files")) {
+            String[] bad={"../","..","/root/","a/b/","a\\b","a:b","%2e%2e/","","./","a\n"};
+            for(int i=0;i<bad.length;i++) check(!safeChild(bad[i]),"unsafe name "+i);
+            check(safeChild("documents/"),"folder allowed");check(safeChild("a.txt"),"file allowed");
+        } else throw new AssertionError(mode);
+        System.out.println(mode+": "+count+" assertions passed (host only)");
+    }
+}
