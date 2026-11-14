@@ -23,11 +23,14 @@ $(OUT):
 $(OUT)/startup.o: $(ROOT)/src/startup.S | $(OUT)
 	$(CC) -mcpu=cortex-a15 -marm -c $< -o $@
 
-$(OUT)/kernel.o: $(ROOT)/src/kernel.c | $(OUT)
+$(OUT)/kernel.o: $(ROOT)/src/kernel.c $(ROOT)/src/hal.h | $(OUT)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OUT)/torchos.elf: $(OUT)/startup.o $(OUT)/kernel.o $(ROOT)/linker.ld
-	$(CC) $(LDFLAGS) $(OUT)/startup.o $(OUT)/kernel.o -o $@
+$(OUT)/hal_qemu_virt.o: $(ROOT)/src/hal_qemu_virt.c $(ROOT)/src/hal.h | $(OUT)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OUT)/torchos.elf: $(OUT)/startup.o $(OUT)/kernel.o $(OUT)/hal_qemu_virt.o $(ROOT)/linker.ld
+	$(CC) $(LDFLAGS) $(OUT)/startup.o $(OUT)/kernel.o $(OUT)/hal_qemu_virt.o -o $@
 	$(READELF) -h $@ | grep -Eq 'Machine:.*ARM'
 	@echo 'QEMU-only ARM ELF generated; NOT a BlackBerry firmware image.'
 
