@@ -2,7 +2,7 @@
   <application id="TorchOS">
     <name>TorchOS Pocket Workstation</name>
     <description>Pocket workstation shell on stock BlackBerry OS 7.0 with optional TorchLink app-local Deck control.</description>
-    <version>0.3.1</version>
+    <version>0.4.0</version>
     <vendor>FanTest</vendor>
     <fileset Java="1.0">
       <directory>build</directory>

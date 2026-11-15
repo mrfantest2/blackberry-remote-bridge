@@ -93,8 +93,13 @@ class Contracts(unittest.TestCase):
         self.assertIn('enterEventDispatcher()', SRC)
         titles = re.findall(r'"([^\"]+)"', re.search(r'TITLES = \{(.*?)\};', SRC, re.S)[1])
         self.assertEqual(titles, ['Terminal', 'Network Center', 'Security Center', 'Device Manager', 'File Manager', 'System Monitor'])
-        self.assertIn('rows[0].setFocus()', SRC)
-        self.assertIn('new Row[6]', SRC)
+        self.assertIn('tiles[0].setFocus()', SRC)
+        self.assertIn('new FlowFieldManager()', SRC)
+        labels = re.findall(r'"([^\"]+)"', re.search(r'APP_LABELS = \{(.*?)\};', SRC, re.S)[1])
+        sections = [int(x) for x in re.search(r'APP_SECTIONS = \{(.*?)\};', SRC, re.S)[1].split(',')]
+        self.assertEqual(len(labels), len(sections))
+        self.assertEqual(dict(zip(labels, sections))['Sidecar'], 13)
+        self.assertEqual(dict(zip(labels, sections))['Remote'], 12)
 
     def test_every_external_item_disconnected(self):
         items = ['S25', 'Steam Deck', 'MASTER-PC', 'CamDoor', 'Xiaomi C301',
@@ -108,14 +113,17 @@ class Contracts(unittest.TestCase):
         allowed = ('java.util.', 'java.io.', 'net.rim.device.api.ui.',
                    'net.rim.device.api.i18n.SimpleDateFormat', 'net.rim.device.api.system.DeviceInfo',
                    'javax.microedition.rms.RecordStore', 'javax.microedition.io.Connector',
-                   'javax.microedition.io.file.', 'javax.microedition.io.StreamConnection')
+                   'javax.microedition.io.file.', 'javax.microedition.io.StreamConnection', 'javax.bluetooth.')
         self.assertTrue(all(i.startswith(allowed) for i in imports), imports)
         for forbidden in ['HttpConnection', 'BrowserField', 'ServerSocket', 'SocketConnection', 'PersistentStore',
                           'ApplicationPermissions', 'EventInjector', 'https://', 'http://', 'interface=cellular',
                           'socket://:', 'ApplicationManager.getApplicationManager().launch']:
             self.assertNotIn(forbidden, SRC)
-        # Exactly two connections: read-only file listing and ONE outbound Wi-Fi TorchLink socket.
-        self.assertEqual(SRC.count('Connector.open('), 2)
+        # Exactly three connections: read-only file listing, ONE outbound Wi-Fi TorchLink socket,
+        # and the Sidecar Bluetooth serial client (JSR-82 btspp; verified unsigned by rapc).
+        self.assertEqual(SRC.count('Connector.open('), 3)
+        self.assertIn('"btspp://"', SRC)
+        self.assertNotIn('btspp://localhost', SRC)  # client only, never a Bluetooth server
         self.assertEqual(SRC.count('"socket://"'), 1)
         self.assertIn(';deviceside=true;interface=wifi;', SRC)
         self.assertIn('Connector.open(target, Connector.READ_WRITE, true)', SRC)
@@ -161,14 +169,14 @@ class Contracts(unittest.TestCase):
         alx = ET.parse(ROOT / 'TorchOS.alx')
         app = alx.find('application')
         self.assertEqual(app.attrib['id'], 'TorchOS')
-        self.assertEqual(app.findtext('version'), '0.3.1')
+        self.assertEqual(app.findtext('version'), '0.4.0')
         self.assertEqual(app.findtext('fileset/directory'), 'build')
         self.assertEqual(app.findtext('fileset/files/file'), 'TorchOS.cod')
         rapc = (ROOT / 'TorchOS.rapc').read_text()
         self.assertIn('MicroEdition-Profile: MIDP-2.0', rapc)
         self.assertIn('MicroEdition-Configuration: CLDC-1.1', rapc)
         self.assertIn('MIDlet-1: TorchOS,,TorchOS', rapc)
-        self.assertIn('MIDlet-Version: 0.3.1', rapc)
+        self.assertIn('MIDlet-Version: 0.4.0', rapc)
         self.assertIn('RIM-MIDlet-Flags-1: 0', rapc)  # auto-run needs RRT signing (rapc .csl bisect)
         self.assertNotIn('S25Hub', rapc)
 

@@ -36,6 +36,10 @@ def without_link(src):
     """Source minus the TorchLink socket session class (its stream is a Wi-Fi socket, not a file)."""
     start = src.index('    private final class Link implements Runnable {')
     end = src.index('    private void setBanner(', start)
+    src = src[:start] + src[end:]
+    # Sidecar: Bluetooth serial (btspp) stream to the ESP32, not a file.
+    start = src.index('    private final class Sidecar extends Page {')
+    end = src.index('    /** Owner-only, on-device pairing', start)
     return src[:start] + src[end:]
 
 
@@ -47,8 +51,8 @@ class CP002Contracts(unittest.TestCase):
         self.assertIn('depth >= 8', SRC)
         for method in ['openOutputStream', '.delete(', '.rename(', '.mkdir(', '.create(', '.setWritable(']:
             self.assertNotIn(method, without_link(SRC))
-        # The only output stream is the TorchLink Wi-Fi socket, never a FileConnection.
-        self.assertEqual(SRC.count('openOutputStream'), 1)
+        # Output streams exist only for the TorchLink Wi-Fi socket and Sidecar Bluetooth link, never files.
+        self.assertEqual(SRC.count('openOutputStream'), 2)
         self.assertIn('out = c.openOutputStream();', SRC)
 
     def test_terminal_native_editable_and_keyboard(self):
