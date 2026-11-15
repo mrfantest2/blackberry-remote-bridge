@@ -208,6 +208,11 @@ class DeckSafety(unittest.TestCase):
                 tl._check_bind(bad)
         self.assertEqual(tl._check_bind("192.168.1.5"), "192.168.1.5")
 
+    def test_keepalive_is_below_phone_idle_limit(self):
+        core = CORE.read_text()
+        idle_ms = int(re.search(r"IDLE_MS = (\d+)L", core).group(1))
+        self.assertLess(tl.KEEPALIVE_S * 1000, idle_ms / 1.5)
+
     def test_key_file_must_be_private(self):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "k")

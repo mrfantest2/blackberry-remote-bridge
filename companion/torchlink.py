@@ -19,6 +19,7 @@ import hashlib
 import ipaddress
 import os
 import secrets
+import select
 import socket
 import stat
 import sys
@@ -27,6 +28,7 @@ KEY_BYTES = 20
 MAX_LINE = 512
 RUN_LIMIT = 96
 DEFAULT_PORT = 47810
+KEEPALIVE_S = 45.0
 DEFAULT_KEY = os.path.expanduser("~/.config/torchos/torchlink.key")
 OPS = ("HOME", "OPEN", "BACK", "RUN", "STATUS", "BYE")
 
@@ -187,17 +189,37 @@ def cmd_serve(args):
         session = DeckSession(key)
         conn.sendall((session.accept_hello(read_line(rf)) + "\n").encode())
         print("Paired TorchOS connected from %s. Commands: open N | back | home | run <cmd> | status | bye" % peer[0])
-        for text in sys.stdin:
+        fd, pending, eof = sys.stdin.fileno(), b"", False
+        while True:
+            if b"\n" not in pending and not eof:
+                # Phone closes sessions idle > 90 s; send an authenticated STATUS keep-alive at 45 s.
+                ready, _, _ = select.select([fd], [], [], KEEPALIVE_S)
+                if not ready:
+                    conn.sendall((session.command("STATUS") + "\n").encode())
+                    ok, message = session.verify_ack(read_line(rf))
+                    print("(keep-alive) " + ("OK " if ok else "ERR ") + message, flush=True)
+                    continue
+                chunk = os.read(fd, 4096)
+                eof = not chunk
+                pending += chunk
+                continue
+            if b"\n" in pending:
+                raw, pending = pending.split(b"\n", 1)
+            elif pending:
+                raw, pending = pending, b""
+            else:
+                break
+            text = raw.decode("ascii", "replace")
             if not text.strip():
                 continue
             try:
                 line = session.command(*parse_operator(text))
             except LinkError as exc:
-                print("refused locally:", exc)
+                print("refused locally:", exc, flush=True)
                 continue
             conn.sendall((line + "\n").encode())
             ok, message = session.verify_ack(read_line(rf))
-            print(("OK " if ok else "ERR ") + message)
+            print(("OK " if ok else "ERR ") + message, flush=True)
             if text.strip().upper() == "BYE":
                 break
 
