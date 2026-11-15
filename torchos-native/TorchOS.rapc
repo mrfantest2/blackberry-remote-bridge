@@ -5,5 +5,5 @@ MIDlet-Jar-URL: TorchOS.jar
 MIDlet-Jar-Size: 0
 MicroEdition-Profile: MIDP-2.0
 MicroEdition-Configuration: CLDC-1.1
-MIDlet-1: TorchOS,,TorchOS
+MIDlet-1: TorchOS,TorchOS.png,TorchOS
 RIM-MIDlet-Flags-1: 0

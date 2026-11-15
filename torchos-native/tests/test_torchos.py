@@ -175,7 +175,10 @@ class Contracts(unittest.TestCase):
         rapc = (ROOT / 'TorchOS.rapc').read_text()
         self.assertIn('MicroEdition-Profile: MIDP-2.0', rapc)
         self.assertIn('MicroEdition-Configuration: CLDC-1.1', rapc)
-        self.assertIn('MIDlet-1: TorchOS,,TorchOS', rapc)
+        self.assertIn('MIDlet-1: TorchOS,TorchOS.png,TorchOS', rapc)
+        from PIL import Image
+        icon = Image.open(ROOT / 'res/TorchOS.png')
+        self.assertEqual((icon.size, icon.mode), ((80, 80), 'RGBA'))
         self.assertIn('MIDlet-Version: 0.4.0', rapc)
         self.assertIn('RIM-MIDlet-Flags-1: 0', rapc)  # auto-run needs RRT signing (rapc .csl bisect)
         self.assertNotIn('S25Hub', rapc)
