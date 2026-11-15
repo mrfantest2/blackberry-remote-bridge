@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import javax.microedition.io.StreamConnection;
-import net.rim.device.api.system.ApplicationManager;
 import javax.microedition.rms.RecordStore;
 import javax.microedition.io.Connector;
 import javax.microedition.io.file.FileConnection;
@@ -54,23 +53,11 @@ public final class TorchOS extends UiApplication {
     private Terminal activeTerminal;
     static volatile String banner = "Remote: off";
 
-    public static void main(String[] args) {
-        boolean atBoot = ApplicationManager.getApplicationManager().inStartup();
-        TorchOS app = new TorchOS();
-        if (atBoot) {
-            // Takeover: auto-run at boot. Owner can disable in Remote link settings.
-            if (!app.linkStore.load().bootOpen) System.exit(0);
-            app.foregroundAfterStartup(0);
-        }
-        app.enterEventDispatcher();
-    }
+    /* Boot auto-run (RIM-MIDlet-Flags) and ApplicationManager.inStartup() both require the
+     * RIM Runtime API signature (verified by rapc .csl bisect, 2026-11-15). Unsigned TorchOS
+     * therefore stays resident after first launch instead: Back sends it to the background. */
+    public static void main(String[] args) { new TorchOS().enterEventDispatcher(); }
     public TorchOS() { data = store.load(); pushScreen(new Home()); }
-    private void foregroundAfterStartup(final int tries) {
-        invokeLater(new Runnable() { public void run() {
-            if (!ApplicationManager.getApplicationManager().inStartup()) requestForeground();
-            else if (tries < 120) foregroundAfterStartup(tries + 1);
-        } }, 1000, false);
-    }
     /** Kill switch: leaving the foreground (lock screen, other app, Back) ends any remote session. */
     public void deactivate() { link.stop("TorchOS left the foreground"); }
 
@@ -203,7 +190,7 @@ public final class TorchOS extends UiApplication {
                 case 9:
                     text(this, "Project Monitor\nOffline / remote project status unavailable. No gateway transport, project polling or remote actions."); break;
                 default:
-                    text(this, "TorchOS 0.3.0\nNative BlackBerry OS7 shell, not Linux or replacement firmware. Starts at boot (can be disabled in Remote link).");
+                    text(this, "TorchOS 0.3.0\nNative BlackBerry OS7 shell, not Linux or replacement firmware. Stays resident after launch: Back hides it, Menu > Exit TorchOS quits. Tip: assign TorchOS to a convenience key.");
                     text(this, "TorchLink: optional, owner-started Wi-Fi session from the paired Deck. Controls TorchOS screens only (open, back, home, allowlisted terminal commands). HMAC-SHA256 authenticated, not encrypted. Ends on lock, background, timeout or Stop.");
                     text(this, "Local terminal: help date about clear status history notes files. Notes, three tasks and three owner labels use a dedicated bounded RMS store. No terminal history persistence. " + store.error);
                     text(this, "Home: 1-6 / T W S D F M. N Notes, C CamDoor, A Archives, P Projects, O About, 0 More. Trackpad / Enter / touch activate. Terminal has a native keyboard menu. Files are read-only, permission dependent.");
@@ -535,7 +522,7 @@ public final class TorchOS extends UiApplication {
 
     /** RMS record for TorchLink settings. The pairing key never leaves this store or the screen. */
     static final class LinkData {
-        String host = ""; int port = 47810; byte[] key = null; boolean bootOpen = true; long counter;
+        String host = ""; int port = 47810; byte[] key = null; long counter;
     }
     static final class LinkStore {
         private static final String NAME = "TorchOS_Link";
@@ -547,7 +534,7 @@ public final class TorchOS extends UiApplication {
             DataOutputStream out = new DataOutputStream(bytes);
             out.writeInt(MAGIC); out.writeByte(1); out.writeUTF(d.host); out.writeInt(d.port);
             out.writeByte(d.key == null ? 0 : d.key.length); if (d.key != null) out.write(d.key);
-            out.writeBoolean(d.bootOpen); out.writeLong(d.counter); out.flush();
+            out.writeLong(d.counter); out.flush();
             return bytes.toByteArray();
         }
         static LinkData decode(byte[] b) throws IOException {
@@ -558,7 +545,7 @@ public final class TorchOS extends UiApplication {
             int k = in.readUnsignedByte();
             if (k != 0 && k != TorchLinkCore.KEY_BYTES) throw new IOException("Link key");
             if (k > 0) { d.key = new byte[k]; in.readFully(d.key); }
-            d.bootOpen = in.readBoolean(); d.counter = in.readLong();
+            d.counter = in.readLong();
             if (in.available() != 0) throw new IOException("Trailing data");
             return d;
         }
@@ -720,7 +707,6 @@ public final class TorchOS extends UiApplication {
     /** Owner-only, on-device pairing and session control. Never reachable over TorchLink. */
     private final class RemoteLink extends Page {
         private final EditField host, port, code;
-        private final CheckboxField boot;
         private final RichTextField message;
         RemoteLink() {
             super("Remote link (Deck)");
@@ -730,12 +716,8 @@ public final class TorchOS extends UiApplication {
             host = new EditField("Deck IPv4: ", d.host, 15, Field.EDITABLE);
             port = new EditField("Port: ", Integer.toString(d.port), 5, Field.EDITABLE | EditField.FILTER_INTEGER);
             code = new EditField("Pairing code: ", "", 48, Field.EDITABLE);
-            boot = new CheckboxField("Open TorchOS at boot", d.bootOpen) {
-                public void paint(Graphics g) { g.setColor(INK); super.paint(g); }
-            };
             EditField[] fs = {host, port, code};
             for (int i = 0; i < fs.length; i++) { fs[i].setBackground(BackgroundFactory.createSolidBackground(0xFFFFFF)); add(fs[i]); }
-            add(boot);
             button(this, "Save settings / pair", new Runnable() { public void run() { savePairing(); } });
             button(this, "Start remote session", new Runnable() { public void run() { message.setText(link.start()); } });
             button(this, "Stop remote session", new Runnable() { public void run() { link.stop("stopped on phone"); message.setText(link.last); } });
@@ -758,7 +740,7 @@ public final class TorchOS extends UiApplication {
                 if (k == null) { message.setText("Pairing code must be the 32 characters shown on the Deck."); return; }
                 d.key = k;
             }
-            d.host = h; d.port = p; d.bootOpen = boot.getChecked();
+            d.host = h; d.port = p;
             code.setText("");
             message.setText(linkStore.save(d) ? (d.key == null ? "Saved. Not paired yet." : "Saved. Paired with Deck.") : linkStore.error);
         }

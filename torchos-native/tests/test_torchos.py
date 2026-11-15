@@ -108,8 +108,7 @@ class Contracts(unittest.TestCase):
         allowed = ('java.util.', 'java.io.', 'net.rim.device.api.ui.',
                    'net.rim.device.api.i18n.SimpleDateFormat', 'net.rim.device.api.system.DeviceInfo',
                    'javax.microedition.rms.RecordStore', 'javax.microedition.io.Connector',
-                   'javax.microedition.io.file.', 'javax.microedition.io.StreamConnection',
-                   'net.rim.device.api.system.ApplicationManager')
+                   'javax.microedition.io.file.', 'javax.microedition.io.StreamConnection')
         self.assertTrue(all(i.startswith(allowed) for i in imports), imports)
         for forbidden in ['HttpConnection', 'BrowserField', 'ServerSocket', 'SocketConnection', 'PersistentStore',
                           'ApplicationPermissions', 'EventInjector', 'https://', 'http://', 'interface=cellular',
@@ -128,7 +127,9 @@ class Contracts(unittest.TestCase):
         self.assertIn('if (!isForeground()) return "TorchOS must be in the foreground."', SRC)
         self.assertIn('if (!isForeground()) { result[1] = "TorchOS not in foreground"', SRC)
         self.assertIn('requestBackground()', SRC)
-        self.assertIn('if (!app.linkStore.load().bootOpen) System.exit(0);', SRC)
+        # Signature-required APIs found by rapc bisect must stay out of the unsigned build.
+        self.assertNotIn('ApplicationManager', SRC)
+        self.assertIn("if [[ -s TorchOS.csl ]]; then", (ROOT / 'build.sh').read_text())
         self.assertIn('session.accept(readLine(in)', SRC)
         self.assertNotIn('Dialog.ask', SRC.split('private final class Link implements Runnable')[1].split('private void setBanner(')[0])
 
@@ -161,7 +162,7 @@ class Contracts(unittest.TestCase):
         self.assertIn('MicroEdition-Configuration: CLDC-1.1', rapc)
         self.assertIn('MIDlet-1: TorchOS,,TorchOS', rapc)
         self.assertIn('MIDlet-Version: 0.3.0', rapc)
-        self.assertIn('RIM-MIDlet-Flags-1: 1', rapc)  # takeover: auto-run at boot
+        self.assertIn('RIM-MIDlet-Flags-1: 0', rapc)  # auto-run needs RRT signing (rapc .csl bisect)
         self.assertNotIn('S25Hub', rapc)
 
     def test_build_uses_real_tools_and_local_outputs(self):

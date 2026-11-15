@@ -29,5 +29,11 @@ cp "$ROOT/TorchOS.rapc" TorchOS.rapc
 "$JDK8_HOME/bin/java" -Djava.io.tmpdir="$TMPDIR" -jar "$JDE_HOME/rapc.jar" \
     "import=$JDE_HOME/net_rim_api.jar" codename=TorchOS TorchOS.rapc "$ROOT/src/TorchOS.java" "$ROOT/src/TorchLinkCore.java"
 test -s TorchOS.cod
+# Unsigned only: rapc writes a .csl when any protected (signature-required) API is used.
+# Such a module would fail to start on the handset, so refuse to produce it.
+if [[ -s TorchOS.csl ]]; then
+    printf '\nREFUSED: build requires BlackBerry code signing:\n'; cat TorchOS.csl
+    rm -f TorchOS.cod; exit 3
+fi
 printf '\nCOD generated locally; unsigned, not installed or device-tested.\n'
 sha256sum TorchOS.cod
