@@ -120,6 +120,13 @@ class Contracts(unittest.TestCase):
         self.assertIn(';deviceside=true;interface=wifi;', SRC)
         self.assertIn('Connector.open(target, Connector.READ_WRITE, true)', SRC)
 
+    def test_more_rows_map_to_their_sections(self):
+        # Device QA 2026-11-15: the Remote link row reopened More (section 11).
+        self.assertIn('final int index = i == 5 ? 12 : i + 6;', SRC)
+        self.assertIn('i == 5 ? "Pair / start / stop Deck control"', SRC)
+        # Device QA: HOME stopping at the protected Remote link screen must report clearly.
+        self.assertIn('stopped at Remote link (protected, owner-only)', SRC)
+
     def test_torchlink_safety_gates(self):
         # Kill switch on background/lock, remote cannot reach pairing screen, owner-only start.
         self.assertIn('public void deactivate() { link.stop(', SRC)
@@ -154,14 +161,14 @@ class Contracts(unittest.TestCase):
         alx = ET.parse(ROOT / 'TorchOS.alx')
         app = alx.find('application')
         self.assertEqual(app.attrib['id'], 'TorchOS')
-        self.assertEqual(app.findtext('version'), '0.3.0')
+        self.assertEqual(app.findtext('version'), '0.3.1')
         self.assertEqual(app.findtext('fileset/directory'), 'build')
         self.assertEqual(app.findtext('fileset/files/file'), 'TorchOS.cod')
         rapc = (ROOT / 'TorchOS.rapc').read_text()
         self.assertIn('MicroEdition-Profile: MIDP-2.0', rapc)
         self.assertIn('MicroEdition-Configuration: CLDC-1.1', rapc)
         self.assertIn('MIDlet-1: TorchOS,,TorchOS', rapc)
-        self.assertIn('MIDlet-Version: 0.3.0', rapc)
+        self.assertIn('MIDlet-Version: 0.3.1', rapc)
         self.assertIn('RIM-MIDlet-Flags-1: 0', rapc)  # auto-run needs RRT signing (rapc .csl bisect)
         self.assertNotIn('S25Hub', rapc)
 

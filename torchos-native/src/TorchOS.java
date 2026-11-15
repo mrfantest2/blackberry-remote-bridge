@@ -148,8 +148,8 @@ public final class TorchOS extends UiApplication {
             super("More / secondary");
             String[] names = {"Notes & Tasks", "CamDoor", "EchoVault / Tahani", "Project Monitor", "Settings / About", "Remote link (Deck)"};
             for (int i = 0; i < names.length; i++) {
-                final int index = i + 6;
-                add(new Row(names[i], i == 0 ? "Local RMS notes and checklist" : i == 6 ? "Pair / start / stop Deck control" : "Offline / details", new Runnable() {
+                final int index = i == 5 ? 12 : i + 6; // Remote link is section 12, not 11 (More)
+                add(new Row(names[i], i == 0 ? "Local RMS notes and checklist" : i == 5 ? "Pair / start / stop Deck control" : "Offline / details", new Runnable() {
                     public void run() { open(index); }
                 }));
             }
@@ -190,7 +190,7 @@ public final class TorchOS extends UiApplication {
                 case 9:
                     text(this, "Project Monitor\nOffline / remote project status unavailable. No gateway transport, project polling or remote actions."); break;
                 default:
-                    text(this, "TorchOS 0.3.0\nNative BlackBerry OS7 shell, not Linux or replacement firmware. Stays resident after launch: Back hides it, Menu > Exit TorchOS quits. Tip: assign TorchOS to a convenience key.");
+                    text(this, "TorchOS 0.3.1\nNative BlackBerry OS7 shell, not Linux or replacement firmware. Stays resident after launch: Back hides it, Menu > Exit TorchOS quits. Tip: assign TorchOS to a convenience key.");
                     text(this, "TorchLink: optional, owner-started Wi-Fi session from the paired Deck. Controls TorchOS screens only (open, back, home, allowlisted terminal commands). HMAC-SHA256 authenticated, not encrypted. Ends on lock, background, timeout or Stop.");
                     text(this, "Local terminal: help date about clear status history notes files. Notes, three tasks and three owner labels use a dedicated bounded RMS store. No terminal history persistence. " + store.error);
                     text(this, "Home: 1-6 / T W S D F M. N Notes, C CamDoor, A Archives, P Projects, O About, 0 More. Trackpad / Enter / touch activate. Terminal has a native keyboard menu. Files are read-only, permission dependent.");
@@ -688,7 +688,9 @@ public final class TorchOS extends UiApplication {
             int guard = 0;
             while (!(getActiveScreen() instanceof Home) && !(getActiveScreen() instanceof RemoteLink) && guard++ < 16)
                 ((MainScreen) getActiveScreen()).onClose();
-            result[0] = getActiveScreen() instanceof Home ? "OK" : "ERR"; result[1] = "home";
+            if (getActiveScreen() instanceof Home) { result[0] = "OK"; result[1] = "home"; }
+            else if (getActiveScreen() instanceof RemoteLink) { result[0] = "OK"; result[1] = "stopped at Remote link (protected, owner-only)"; }
+            else result[1] = "home not reached";
         } else if (c.op.equals("RUN")) {
             if (activeTerminal == null || getActiveScreen() != activeTerminal) open(0);
             activeTerminal.command(c.arg);
