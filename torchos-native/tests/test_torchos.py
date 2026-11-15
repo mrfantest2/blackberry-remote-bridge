@@ -93,8 +93,13 @@ class Contracts(unittest.TestCase):
         self.assertIn('enterEventDispatcher()', SRC)
         titles = re.findall(r'"([^\"]+)"', re.search(r'TITLES = \{(.*?)\};', SRC, re.S)[1])
         self.assertEqual(titles, ['Terminal', 'Network Center', 'Security Center', 'Device Manager', 'File Manager', 'System Monitor'])
-        self.assertIn('rows[0].setFocus()', SRC)
-        self.assertIn('new Row[6]', SRC)
+        self.assertIn('tiles[0].setFocus()', SRC)
+        self.assertIn('new FlowFieldManager()', SRC)
+        labels = re.findall(r'"([^\"]+)"', re.search(r'APP_LABELS = \{(.*?)\};', SRC, re.S)[1])
+        sections = [int(x) for x in re.search(r'APP_SECTIONS = \{(.*?)\};', SRC, re.S)[1].split(',')]
+        self.assertEqual(len(labels), len(sections))
+        self.assertEqual(dict(zip(labels, sections))['Sidecar'], 13)
+        self.assertEqual(dict(zip(labels, sections))['Remote'], 12)
 
     def test_every_external_item_disconnected(self):
         items = ['S25', 'Steam Deck', 'MASTER-PC', 'CamDoor', 'Xiaomi C301',
@@ -108,12 +113,40 @@ class Contracts(unittest.TestCase):
         allowed = ('java.util.', 'java.io.', 'net.rim.device.api.ui.',
                    'net.rim.device.api.i18n.SimpleDateFormat', 'net.rim.device.api.system.DeviceInfo',
                    'javax.microedition.rms.RecordStore', 'javax.microedition.io.Connector',
-                   'javax.microedition.io.file.')
-        self.assertTrue(all(i.startswith(allowed) for i in imports))
-        for forbidden in ['HttpConnection', 'BrowserField', 'Socket', 'PersistentStore',
-                          'ApplicationPermissions', 'https://', 'http://']:
+                   'javax.microedition.io.file.', 'javax.microedition.io.StreamConnection', 'javax.bluetooth.')
+        self.assertTrue(all(i.startswith(allowed) for i in imports), imports)
+        for forbidden in ['HttpConnection', 'BrowserField', 'ServerSocket', 'SocketConnection', 'PersistentStore',
+                          'ApplicationPermissions', 'EventInjector', 'https://', 'http://', 'interface=cellular',
+                          'socket://:', 'ApplicationManager.getApplicationManager().launch']:
             self.assertNotIn(forbidden, SRC)
-        self.assertEqual(SRC.count('Connector.open('), 1)
+        # Exactly three connections: read-only file listing, ONE outbound Wi-Fi TorchLink socket,
+        # and the Sidecar Bluetooth serial client (JSR-82 btspp; verified unsigned by rapc).
+        self.assertEqual(SRC.count('Connector.open('), 3)
+        self.assertIn('"btspp://"', SRC)
+        self.assertNotIn('btspp://localhost', SRC)  # client only, never a Bluetooth server
+        self.assertEqual(SRC.count('"socket://"'), 1)
+        self.assertIn(';deviceside=true;interface=wifi;', SRC)
+        self.assertIn('Connector.open(target, Connector.READ_WRITE, true)', SRC)
+
+    def test_more_rows_map_to_their_sections(self):
+        # Device QA 2026-11-15: the Remote link row reopened More (section 11).
+        self.assertIn('final int index = i == 5 ? 12 : i + 6;', SRC)
+        self.assertIn('i == 5 ? "Pair / start / stop Deck control"', SRC)
+        # Device QA: HOME stopping at the protected Remote link screen must report clearly.
+        self.assertIn('stopped at Remote link (protected, owner-only)', SRC)
+
+    def test_torchlink_safety_gates(self):
+        # Kill switch on background/lock, remote cannot reach pairing screen, owner-only start.
+        self.assertIn('public void deactivate() { link.stop(', SRC)
+        self.assertIn('if (section == 12) { result[1] = "Remote link screen cannot be opened remotely"', SRC)
+        self.assertIn('if (!isForeground()) return "TorchOS must be in the foreground."', SRC)
+        self.assertIn('if (!isForeground()) { result[1] = "TorchOS not in foreground"', SRC)
+        self.assertIn('requestBackground()', SRC)
+        # Signature-required APIs found by rapc bisect must stay out of the unsigned build.
+        self.assertNotIn('ApplicationManager', SRC)
+        self.assertIn("if [[ -s TorchOS.csl ]]; then", (ROOT / 'build.sh').read_text())
+        self.assertIn('session.accept(readLine(in)', SRC)
+        self.assertNotIn('Dialog.ask', SRC.split('private final class Link implements Runnable')[1].split('private void setBanner(')[0])
 
     def test_persistent_notes_and_task_state(self):
         self.assertIn('new EditField("Draft: ", data.note, 512', SRC)
@@ -136,14 +169,18 @@ class Contracts(unittest.TestCase):
         alx = ET.parse(ROOT / 'TorchOS.alx')
         app = alx.find('application')
         self.assertEqual(app.attrib['id'], 'TorchOS')
-        self.assertEqual(app.findtext('version'), '0.2.0')
+        self.assertEqual(app.findtext('version'), '0.4.1')
         self.assertEqual(app.findtext('fileset/directory'), 'build')
         self.assertEqual(app.findtext('fileset/files/file'), 'TorchOS.cod')
         rapc = (ROOT / 'TorchOS.rapc').read_text()
         self.assertIn('MicroEdition-Profile: MIDP-2.0', rapc)
         self.assertIn('MicroEdition-Configuration: CLDC-1.1', rapc)
-        self.assertIn('MIDlet-1: TorchOS,,TorchOS', rapc)
-        self.assertIn('MIDlet-Version: 0.2.0', rapc)
+        self.assertIn('MIDlet-1: TorchOS,TorchOS.png,TorchOS', rapc)
+        from PIL import Image
+        icon = Image.open(ROOT / 'res/TorchOS.png')
+        self.assertEqual((icon.size, icon.mode), ((80, 80), 'RGBA'))
+        self.assertIn('MIDlet-Version: 0.4.1', rapc)
+        self.assertIn('RIM-MIDlet-Flags-1: 0', rapc)  # auto-run needs RRT signing (rapc .csl bisect)
         self.assertNotIn('S25Hub', rapc)
 
     def test_build_uses_real_tools_and_local_outputs(self):

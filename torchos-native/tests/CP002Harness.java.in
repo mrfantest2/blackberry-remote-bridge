@@ -1,6 +1,7 @@
 import java.io.*;
 import java.util.Date;
 public class CP002Harness {
+    static String banner = "Remote: off"; // host double for TorchOS.banner
     static int count;
     static void check(boolean value, String why) { count++; if(!value) throw new AssertionError(why); }
     static class RecordStore {
@@ -62,11 +63,12 @@ public class CP002Harness {
         String mode=args[0];
         if(mode.equals("terminal")) {
             TerminalModel t=new TerminalModel();
-            String[] allowed={"help","date","about","status","history","notes","files"};
+            String[] allowed={"help","date","about","status","history","notes","files","remote"};
             for(int i=0;i<allowed.length;i++) check(t.execute(allowed[i]).indexOf("Rejected")<0,"allowed "+allowed[i]);
             String[] denied={"sh","root","status; reboot","help\nfiles","HELP","notes x","$(id)",""};
             for(int i=0;i<denied.length;i++) check(t.execute(denied[i]).indexOf("Rejected")>=0,"rejected "+denied[i]);
-            check(t.execute("status").indexOf("disconnected")>=0,"remote honest");
+            check(t.execute("status").indexOf("Remote: off")>=0,"remote honest: off unless a session is active");
+            check(t.execute("remote").indexOf("Remote: off")>=0,"remote command honest");
             check(t.execute("notes").indexOf("Notes & Tasks")>=0,"notes guidance");
             t.execute("clear"); check(t.output.length()==0,"clear output");
         } else if(mode.equals("bounds")) {
@@ -202,7 +204,7 @@ public class CP002Harness {
             check(cleanHistory(t),"null history clean");
             check(t.execute("  help  ").indexOf("Rejected")<0,"surrounding ASCII spaces allowed");
             check(t.history[t.historyCount-1].equals("help"),"spaces normalized out of history");
-            check(t.execute("  status  ").indexOf("disconnected")>=0,"spaced allowed command runs");
+            check(t.execute("  status  ").indexOf("Remote: off")>=0,"spaced allowed command runs");
             check(cleanHistory(t),"accepted history clean");
             check(t.execute("\nhelp").indexOf("Rejected")>=0,"newline still rejected");
             check(t.execute("help").indexOf("Rejected")<0,"terminal recovers after rejection");

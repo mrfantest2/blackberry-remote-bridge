@@ -32,6 +32,17 @@ class CP002Behavior(unittest.TestCase):
     def test_file_child_traversal_rejection(self): self.run_mode('files')
 
 
+def without_link(src):
+    """Source minus the TorchLink socket session class (its stream is a Wi-Fi socket, not a file)."""
+    start = src.index('    private final class Link implements Runnable {')
+    end = src.index('    private void setBanner(', start)
+    src = src[:start] + src[end:]
+    # Sidecar: Bluetooth serial (btspp) stream to the ESP32, not a file.
+    start = src.index('    private final class Sidecar extends Page {')
+    end = src.index('    /** Owner-only, on-device pairing', start)
+    return src[:start] + src[end:]
+
+
 class CP002Contracts(unittest.TestCase):
     def test_file_api_is_read_only_and_bounded(self):
         self.assertIn('FileSystemRegistry.listRoots()', SRC)
@@ -39,7 +50,10 @@ class CP002Contracts(unittest.TestCase):
         self.assertIn('count < 64', SRC)
         self.assertIn('depth >= 8', SRC)
         for method in ['openOutputStream', '.delete(', '.rename(', '.mkdir(', '.create(', '.setWritable(']:
-            self.assertNotIn(method, SRC)
+            self.assertNotIn(method, without_link(SRC))
+        # Output streams exist only for the TorchLink Wi-Fi socket and Sidecar Bluetooth link, never files.
+        self.assertEqual(SRC.count('openOutputStream'), 2)
+        self.assertIn('out = c.openOutputStream();', SRC)
 
     def test_terminal_native_editable_and_keyboard(self):
         for token in ['new EditField("local> "', 'Field.FOCUSABLE | Field.READONLY', 'TerminalModel.INPUT_LIMIT', 'VirtualKeyboard.SHOW', '"Previous command"', '"Next command"', '"Help"', '"Clear"', '"Run"']:
@@ -48,7 +62,7 @@ class CP002Contracts(unittest.TestCase):
         self.assertNotIn('HttpConnection', SRC)
 
     def test_diagnostics_honest(self):
-        for token in ['DeviceInfo.getBatteryLevel()', 'Runtime.getRuntime().freeMemory()', 'app runtime', 'Checksums disabled', 'Network capabilities unavailable', 'Native transport not implemented']:
+        for token in ['DeviceInfo.getBatteryLevel()', 'Runtime.getRuntime().freeMemory()', 'app runtime', 'Checksums disabled', 'Network capabilities unavailable', 'HMAC-SHA256 authenticated, not encrypted', 'Controls TorchOS screens only']:
             self.assertIn(token, SRC)
 
 

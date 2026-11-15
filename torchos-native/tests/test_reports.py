@@ -32,7 +32,8 @@ class ReportPersistence(unittest.TestCase):
         self.assertIn('"Save local report"', source)
         self.assertIn('"View saved report"', source)
         self.assertIn('"TorchOS_CP002_Report"', source)
-        self.assertNotIn('openOutputStream', source)
+        self.assertNotIn('FileConnection) Connector.open(url, Connector.READ_WRITE', source)
+        self.assertEqual(source.count('openOutputStream'), 2)  # TorchLink socket + Sidecar Bluetooth only
 
 
 if __name__ == '__main__':

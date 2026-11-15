@@ -5,6 +5,17 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import javax.microedition.io.StreamConnection;
+import javax.bluetooth.DeviceClass;
+import javax.bluetooth.DiscoveryAgent;
+import javax.bluetooth.DiscoveryListener;
+import javax.bluetooth.LocalDevice;
+import javax.bluetooth.RemoteDevice;
+import javax.bluetooth.ServiceRecord;
+import javax.bluetooth.UUID;
+import net.rim.device.api.ui.container.FlowFieldManager;
 import javax.microedition.rms.RecordStore;
 import javax.microedition.io.Connector;
 import javax.microedition.io.file.FileConnection;
@@ -28,7 +39,8 @@ import net.rim.device.api.ui.component.RichTextField;
 import net.rim.device.api.ui.container.MainScreen;
 import net.rim.device.api.ui.decor.BackgroundFactory;
 
-/** Local pocket workstation on stock OS7. No native network transport. */
+/** Pocket workstation on stock OS7. Optional TorchLink: app-local remote control of
+ *  TorchOS's own screens from the paired Deck over Wi-Fi. No OS-wide input. */
 public final class TorchOS extends UiApplication {
     private static final int BG = 0x101D28, INK = 0xEDF4F7, MUTED = 0xB9CBD6, ACCENT = 0x82E3C2;
     private static final String[] TITLES = {
@@ -44,8 +56,18 @@ public final class TorchOS extends UiApplication {
     private final TerminalModel terminal = new TerminalModel();
     private final long started = System.currentTimeMillis();
 
+    private final LinkStore linkStore = new LinkStore();
+    private final Link link = new Link();
+    private Terminal activeTerminal;
+    static volatile String banner = "Remote: off";
+
+    /* Boot auto-run (RIM-MIDlet-Flags) and the startup-state query both require the
+     * RIM Runtime API signature (verified by rapc .csl bisect, 2026-11-15). Unsigned TorchOS
+     * therefore stays resident after first launch instead: Back sends it to the background. */
     public static void main(String[] args) { new TorchOS().enterEventDispatcher(); }
     public TorchOS() { data = store.load(); pushScreen(new Home()); }
+    /** Kill switch: leaving the foreground (lock screen, other app, Back) ends any remote session. */
+    public void deactivate() { link.stop("TorchOS left the foreground"); }
 
     static int shortcut(char key) {
         if (key >= '1' && key <= '6') return key - '1';
@@ -53,7 +75,8 @@ public final class TorchOS extends UiApplication {
             case 't': return 0; case 'w': return 1; case 's': return 2;
             case 'd': return 3; case 'f': return 4; case 'm': return 5;
             case 'n': return 6; case 'c': return 7; case 'a': return 8;
-            case 'p': return 9; case 'o': return 10; case '0': return 11;
+            case 'p': return 9; case 'o': return 10; case '0': return 11; case 'r': return 12;
+            case 'b': return 13;
             default: return -1;
         }
     }
@@ -80,58 +103,73 @@ public final class TorchOS extends UiApplication {
         else if (section == 5) pushScreen(new SystemMonitor());
         else if (section == 6) pushScreen(new Notes());
         else if (section == 11) pushScreen(new More());
+        else if (section == 12) pushScreen(new RemoteLink());
+        else if (section == 13) pushScreen(new Sidecar());
         else pushScreen(new Detail(section));
     }
     private class Page extends MainScreen {
         Page(String title) {
-            theme(this); setTitle(new Band(title, "TORCHOS CP002 / LOCAL", 24));
-            setStatus(new Band("Back: previous screen", "Remote services: disconnected", 16));
+            theme(this); setTitle(new Band(title, "TORCHOS 0.4 / LOCAL", 24));
+            setStatus(new Band("Back: previous screen", null, 16));
             addMenuItem(new MenuItem("Back", 90, 1) { public void run() { onClose(); } });
         }
         public boolean onClose() { UiApplication.getUiApplication().popScreen(this); return true; }
     }
+    /** Launcher apps: label, glyph, tile colour, section. */
+    static final String[] APP_LABELS = {"Terminal", "Network", "Security", "Devices", "Files", "System",
+        "Notes", "Sidecar", "Remote", "CamDoor", "Projects", "About"};
+    static final String[] APP_GLYPHS = {">_", "Net", "Sec", "Dev", "Fs", "Sys", "Nt", "BT", "Rc", "Cam", "Prj", "i"};
+    static final int[] APP_COLORS = {0x1E6F5C, 0x2B5F8A, 0x7A3E48, 0x5A4E8C, 0x8A6A2B, 0x2E6E7E,
+        0x6B7A2E, 0x2348A0, 0xA0522D, 0x4A4A4A, 0x3E5E4E, 0x37474F};
+    static final int[] APP_SECTIONS = {0, 1, 2, 3, 4, 5, 6, 13, 12, 7, 9, 10};
+
     private final class Home extends MainScreen {
         private final Band status = new Band("", "Offline / stock OS7", 16);
-        private final Row[] rows = new Row[6];
+        private final Tile[] tiles = new Tile[APP_LABELS.length];
         private int clockEvent;
         Home() {
-            theme(this); setTitle(new Band("TorchOS", "POCKET WORKSTATION / CP002", 26));
-            setStatus(new Band("1-6 primary / 0 More / N Notes", "Menu: secondary / O About / Back: Exit", 16));
+            theme(this); setTitle(new Band("TorchOS", "POCKET WORKSTATION / 0.4", 26));
+            setStatus(new Band("Trackpad / touch / letter keys open apps", null, 16));
             add(status);
-            for (int i = 0; i < rows.length; i++) {
-                final int index = i;
-                rows[i] = new Row((i + 1) + "  " + TITLES[i], HINTS[i], new Runnable() {
-                    public void run() { open(index); }
-                }); add(rows[i]);
+            FlowFieldManager grid = new FlowFieldManager();
+            for (int i = 0; i < tiles.length; i++) {
+                final int section = APP_SECTIONS[i];
+                tiles[i] = new Tile(APP_LABELS[i], APP_GLYPHS[i], APP_COLORS[i], new Runnable() {
+                    public void run() { open(section); }
+                });
+                grid.add(tiles[i]);
             }
-            // Secondary navigation is both touchable and available in the native menu.
-            add(new Row("0  More", "Notes / CamDoor / Archives / Projects", new Runnable() {
-                public void run() { open(11); }
-            }));
+            add(grid);
             if (store.error.length() > 0) text(this, store.error);
-            rows[0].setFocus();
+            tiles[0].setFocus();
             addMenuItem(new MenuItem("More / secondary modules", 90, 9) { public void run() { open(11); } });
             addMenuItem(new MenuItem("Notes & Tasks", 95, 9) { public void run() { open(6); } });
             addMenuItem(new MenuItem("Settings / About", 100, 10) { public void run() { open(10); } });
+            addMenuItem(new MenuItem("Remote link (Deck)", 105, 10) { public void run() { open(12); } });
+            addMenuItem(new MenuItem("Sidecar (ESP32)", 106, 10) { public void run() { open(13); } });
+            addMenuItem(new MenuItem("Exit TorchOS", 200, 20) { public void run() { link.stop("exit"); cancelInvokeLater(clockEvent); System.exit(0); } });
             updateClock(); clockEvent = invokeLater(new Runnable() {
                 public void run() { updateClock(); }
             }, 30000, true);
         }
-        private void updateClock() { status.update(new SimpleDateFormat("EEE dd MMM  HH:mm").format(new Date())); }
+        private void updateClock() {
+            status.update(new SimpleDateFormat("EEE dd MMM  HH:mm").format(new Date()) + "   " + battery().substring(battery().indexOf(':') + 1).trim());
+        }
         protected boolean keyChar(char key, int flags, int time) {
             int section = shortcut(key);
-            if (section >= 0) { if (section < rows.length) rows[section].setFocus(); open(section); return true; }
+            if (section >= 0) { open(section); return true; }
             return super.keyChar(key, flags, time);
         }
-        public boolean onClose() { cancelInvokeLater(clockEvent); System.exit(0); return true; }
+        /** Takeover shell: Back keeps TorchOS resident; Menu > Exit TorchOS quits. */
+        public boolean onClose() { link.stop("TorchOS sent to background"); requestBackground(); return true; }
     }
     private final class More extends Page {
         More() {
             super("More / secondary");
-            String[] names = {"Notes & Tasks", "CamDoor", "EchoVault / Tahani", "Project Monitor", "Settings / About"};
+            String[] names = {"Notes & Tasks", "CamDoor", "EchoVault / Tahani", "Project Monitor", "Settings / About", "Remote link (Deck)"};
             for (int i = 0; i < names.length; i++) {
-                final int index = i + 6;
-                add(new Row(names[i], i == 0 ? "Local RMS notes and checklist" : "Offline / details", new Runnable() {
+                final int index = i == 5 ? 12 : i + 6; // Remote link is section 12, not 11 (More)
+                add(new Row(names[i], i == 0 ? "Local RMS notes and checklist" : i == 5 ? "Pair / start / stop Deck control" : "Offline / details", new Runnable() {
                     public void run() { open(index); }
                 }));
             }
@@ -172,8 +210,8 @@ public final class TorchOS extends UiApplication {
                 case 9:
                     text(this, "Project Monitor\nOffline / remote project status unavailable. No gateway transport, project polling or remote actions."); break;
                 default:
-                    text(this, "TorchOS CP002 / 0.2.0\nNative BlackBerry OS7 shell, not Linux or replacement firmware.");
-                    text(this, "Native transport not implemented. Gateway is a read-only contract prototype only; modern TLS on this handset is unverified. No pairing settings or remote execution.");
+                    text(this, "TorchOS 0.4.0\nNative BlackBerry OS7 shell, not Linux or replacement firmware. Stays resident after launch: Back hides it, Menu > Exit TorchOS quits. Tip: assign TorchOS to a convenience key.");
+                    text(this, "TorchLink: optional, owner-started Wi-Fi session from the paired Deck. Controls TorchOS screens only (open, back, home, allowlisted terminal commands). HMAC-SHA256 authenticated, not encrypted. Ends on lock, background, timeout or Stop.");
                     text(this, "Local terminal: help date about clear status history notes files. Notes, three tasks and three owner labels use a dedicated bounded RMS store. No terminal history persistence. " + store.error);
                     text(this, "Home: 1-6 / T W S D F M. N Notes, C CamDoor, A Archives, P Projects, O About, 0 More. Trackpad / Enter / touch activate. Terminal has a native keyboard menu. Files are read-only, permission dependent.");
             }
@@ -182,7 +220,7 @@ public final class TorchOS extends UiApplication {
 
     static final class TerminalModel {
         static final int INPUT_LIMIT = 96, OUTPUT_LIMIT = 4096, HISTORY_LIMIT = 16;
-        String output = "TorchOS local terminal. Type help. Remote services: disconnected.\n";
+        String output = "TorchOS local terminal. Type help.\n";
         final String[] history = new String[HISTORY_LIMIT];
         int historyCount, cursor;
         String draft = "";
@@ -199,17 +237,18 @@ public final class TorchOS extends UiApplication {
             cursor = historyCount;
             String result;
             if (command.equals("clear")) { output = ""; return ""; }
-            if (command.equals("help")) result = "Local only: help date about clear status history notes files. No arguments or shell execution.";
+            if (command.equals("help")) result = "Local only: help date about clear status history notes files remote. No arguments or shell execution.";
             else if (command.equals("date")) result = "Local device clock: " + new Date().toString();
-            else if (command.equals("about")) result = "TorchOS CP002 / stock OS7. Offline pocket workstation.";
-            else if (command.equals("status")) result = "Local terminal ready. Remote services: disconnected. Native transport not implemented.";
+            else if (command.equals("about")) result = "TorchOS 0.3 / stock OS7 pocket workstation. Not replacement firmware.";
+            else if (command.equals("status")) result = "Local terminal ready. " + banner + ". TorchLink controls TorchOS screens only.";
             else if (command.equals("notes")) result = "Open Notes & Tasks from Home (N or More) for local RMS notes.";
             else if (command.equals("files")) result = "Open File Manager from Home (5) for read-only local folders; permission required.";
+            else if (command.equals("remote")) result = banner + ". Pair and start from More > Remote link.";
             else if (command.equals("history")) {
                 StringBuffer b = new StringBuffer("Session history:");
                 for (int i=0;i<historyCount;i++) b.append('\n').append(i+1).append(" ").append(history[i]);
                 result = b.toString();
-            } else result = "Rejected: only help date about clear status history notes files are allowed. No arguments or shell execution.";
+            } else result = "Rejected: only help date about clear status history notes files remote are allowed. No arguments or shell execution.";
             append("local> " + command + "\n" + result + "\n"); return result;
         }
         private String append(String value) {
@@ -269,9 +308,11 @@ public final class TorchOS extends UiApplication {
                 }
             });
             input.setFocus();
+            activeTerminal = this;
         }
         private void submit() { command(input.getText()); }
-        private void command(String value) { terminal.execute(value); output.setText(terminal.output); input.setText(""); input.setFocus(); }
+        void command(String value) { terminal.execute(value); output.setText(terminal.output); input.setText(""); input.setFocus(); }
+        public boolean onClose() { if (activeTerminal == this) activeTerminal = null; return super.onClose(); }
     }
 
     static final class NoteData {
@@ -498,6 +539,361 @@ public final class TorchOS extends UiApplication {
         }
     }
 
+
+    /** RMS record for TorchLink settings. The pairing key never leaves this store or the screen. */
+    static final class LinkData {
+        String host = ""; int port = 47810; byte[] key = null; long counter;
+    }
+    static final class LinkStore {
+        private static final String NAME = "TorchOS_Link";
+        private static final int MAGIC = 0x544C4E4B;
+        String error = "";
+        static byte[] encode(LinkData d) throws IOException {
+            if (d.host.length() > 15 || (d.key != null && d.key.length != TorchLinkCore.KEY_BYTES)) throw new IOException("Link limits");
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            DataOutputStream out = new DataOutputStream(bytes);
+            out.writeInt(MAGIC); out.writeByte(1); out.writeUTF(d.host); out.writeInt(d.port);
+            out.writeByte(d.key == null ? 0 : d.key.length); if (d.key != null) out.write(d.key);
+            out.writeLong(d.counter); out.flush();
+            return bytes.toByteArray();
+        }
+        static LinkData decode(byte[] b) throws IOException {
+            if (b == null || b.length > 256) throw new IOException("Link record");
+            DataInputStream in = new DataInputStream(new ByteArrayInputStream(b));
+            if (in.readInt() != MAGIC || in.readUnsignedByte() != 1) throw new IOException("Link version");
+            LinkData d = new LinkData(); d.host = in.readUTF(); d.port = in.readInt();
+            int k = in.readUnsignedByte();
+            if (k != 0 && k != TorchLinkCore.KEY_BYTES) throw new IOException("Link key");
+            if (k > 0) { d.key = new byte[k]; in.readFully(d.key); }
+            d.counter = in.readLong();
+            if (in.available() != 0) throw new IOException("Trailing data");
+            return d;
+        }
+        LinkData load() {
+            RecordStore rms = null;
+            try {
+                rms = RecordStore.openRecordStore(NAME, true);
+                if (rms.getNumRecords() == 0) return new LinkData();
+                if (rms.getNumRecords() != 1) throw new IOException("records");
+                return decode(rms.getRecord(1));
+            } catch (Exception e) { error = "Remote link settings unreadable; using defaults."; return new LinkData(); }
+            finally { if (rms != null) try { rms.closeRecordStore(); } catch (Exception e) { } }
+        }
+        boolean save(LinkData d) {
+            RecordStore rms = null;
+            try {
+                byte[] b = encode(d);
+                rms = RecordStore.openRecordStore(NAME, true);
+                if (rms.getNumRecords() == 0) rms.addRecord(b, 0, b.length); else rms.setRecord(1, b, 0, b.length);
+                error = ""; return true;
+            } catch (Exception e) { error = "Remote link settings save failed."; return false; }
+            finally { if (rms != null) try { rms.closeRecordStore(); } catch (Exception e) { } }
+        }
+    }
+
+    /** One owner-started outbound Wi-Fi session to the paired Deck. Every exit path closes it. */
+    private final class Link implements Runnable {
+        private Thread thread;
+        private StreamConnection conn;
+        private TorchLinkCore.Session session;
+        private int watchdog = -1;
+        String last = "Never started";
+
+        synchronized boolean active() { return thread != null; }
+        synchronized String start() {
+            if (thread != null) return "Session already running.";
+            if (!isForeground()) return "TorchOS must be in the foreground.";
+            LinkData d = linkStore.load();
+            if (d.key == null) return "Not paired: enter the Deck pairing code first.";
+            if (!TorchLinkCore.validHost(d.host) || d.port < 1024 || d.port > 65535) return "Set the Deck IPv4 address and port first.";
+            d.counter++;
+            if (!linkStore.save(d)) return linkStore.error;
+            String seed = d.counter + "|" + System.currentTimeMillis() + "|" + Runtime.getRuntime().freeMemory()
+                + "|" + new Object().hashCode() + "|" + Thread.currentThread().hashCode();
+            session = new TorchLinkCore.Session(d.key, TorchLinkCore.ascii(seed), System.currentTimeMillis());
+            final String url = "socket://" + d.host + ":" + d.port + ";deviceside=true;interface=wifi;ConnectionTimeout=15000";
+            target = url;
+            thread = new Thread(this); thread.start();
+            setBanner("REMOTE: connecting to " + d.host);
+            watchdog = invokeLater(new Runnable() { public void run() { check(); } }, 5000, true);
+            return "Connecting to " + d.host + ":" + d.port + " over Wi-Fi...";
+        }
+        private String target;
+        void check() {
+            TorchLinkCore.Session s = session;
+            if (s == null) return;
+            long now = System.currentTimeMillis();
+            if (!isForeground()) stop("TorchOS left the foreground");
+            else if (s.isOpen() && (now - startedAt > TorchLinkCore.SESSION_MS)) stop("session expired");
+        }
+        private long startedAt;
+        void stop(String why) {
+            StreamConnection c;
+            synchronized (this) {
+                if (thread == null) return;
+                thread = null; c = conn; conn = null;
+                if (session != null) session.close(why);
+                last = "Stopped: " + why;
+            }
+            if (watchdog >= 0) { cancelInvokeLater(watchdog); watchdog = -1; }
+            if (c != null) try { c.close(); } catch (Exception e) { }
+            setBanner("Remote: off");
+        }
+        private boolean current(Thread t) { synchronized (this) { return thread == t; } }
+        public void run() {
+            Thread me = Thread.currentThread();
+            InputStream in = null; OutputStream out = null;
+            try {
+                StreamConnection c = (StreamConnection) Connector.open(target, Connector.READ_WRITE, true);
+                synchronized (this) { if (thread != me) { c.close(); return; } conn = c; }
+                in = c.openInputStream(); out = c.openOutputStream();
+                send(out, session.hello());
+                if (!session.welcome(readLine(in), System.currentTimeMillis())) { finish(me, session.reason); return; }
+                startedAt = System.currentTimeMillis();
+                setBanner("REMOTE CONTROL ACTIVE - Deck");
+                while (current(me)) {
+                    TorchLinkCore.Command cmd = session.accept(readLine(in), System.currentTimeMillis());
+                    if (cmd == null) { finish(me, session.reason); return; }
+                    final TorchLinkCore.Command fc = cmd;
+                    final String[] result = {"ERR", "not run"};
+                    invokeAndWait(new Runnable() { public void run() { dispatch(fc, result); } });
+                    send(out, session.ack(cmd.seq, result[0].equals("OK"), result[1]));
+                    if (cmd.op.equals("BYE")) { finish(me, "Deck ended session"); return; }
+                }
+            } catch (Exception e) {
+                finish(me, "connection closed (" + e.getClass().getName() + ")");
+            } finally {
+                if (in != null) try { in.close(); } catch (Exception e) { }
+                if (out != null) try { out.close(); } catch (Exception e) { }
+            }
+        }
+        private void finish(Thread me, final String why) {
+            if (!current(me)) return;
+            invokeLater(new Runnable() { public void run() { stop(why); } });
+        }
+        private void send(OutputStream out, String line) throws IOException {
+            byte[] b = TorchLinkCore.ascii(line);
+            if (b == null) throw new IOException("non-ASCII frame");
+            out.write(b); out.write('\n'); out.flush();
+        }
+        private String readLine(InputStream in) throws IOException {
+            StringBuffer b = new StringBuffer();
+            while (true) {
+                int c = in.read();
+                if (c < 0) throw new IOException("Deck disconnected");
+                if (c == '\n') return b.toString();
+                if (c < 0x20 || c > 0x7e || b.length() >= TorchLinkCore.MAX_LINE) throw new IOException("bad frame");
+                b.append((char) c);
+            }
+        }
+    }
+    private void setBanner(final String text) {
+        banner = text;
+        invokeLater(new Runnable() { public void run() {
+            net.rim.device.api.ui.Screen s = getActiveScreen(); if (s != null) s.invalidate();
+        } });
+    }
+    /** Runs on the event thread. Only TorchOS's own navigation and terminal allowlist. */
+    private void dispatch(TorchLinkCore.Command c, String[] result) {
+        if (!isForeground()) { result[1] = "TorchOS not in foreground"; link.stop("TorchOS left the foreground"); return; }
+        net.rim.device.api.ui.Screen top = getActiveScreen();
+        if (c.op.equals("OPEN")) {
+            int section = Integer.parseInt(c.arg);
+            if (section == 12) { result[1] = "Remote link screen cannot be opened remotely"; return; }
+            open(section); result[0] = "OK"; result[1] = "opened " + c.arg;
+        } else if (c.op.equals("BACK")) {
+            if (top instanceof Home || top instanceof RemoteLink) { result[1] = "nothing to go back to"; return; }
+            ((MainScreen) top).onClose(); result[0] = "OK"; result[1] = "back";
+        } else if (c.op.equals("HOME")) {
+            int guard = 0;
+            while (!(getActiveScreen() instanceof Home) && !(getActiveScreen() instanceof RemoteLink) && guard++ < 16)
+                ((MainScreen) getActiveScreen()).onClose();
+            if (getActiveScreen() instanceof Home) { result[0] = "OK"; result[1] = "home"; }
+            else if (getActiveScreen() instanceof RemoteLink) { result[0] = "OK"; result[1] = "stopped at Remote link (protected, owner-only)"; }
+            else result[1] = "home not reached";
+        } else if (c.op.equals("RUN")) {
+            if (activeTerminal == null || getActiveScreen() != activeTerminal) open(0);
+            activeTerminal.command(c.arg);
+            result[0] = "OK"; result[1] = terminalTail();
+        } else if (c.op.equals("STATUS") || c.op.equals("BYE")) {
+            String name = top.getClass().getName();
+            result[0] = "OK"; result[1] = "screen " + name.substring(name.lastIndexOf('$') + 1) + "; " + battery();
+        }
+    }
+    private String terminalTail() {
+        String o = terminal.output;
+        int cut = o.lastIndexOf('\n', o.length() - 2);
+        return o.substring(cut < 0 ? 0 : cut + 1).trim();
+    }
+
+
+    /** Bluetooth serial (JSR-82 btspp, no signing) to the paired TorchOS-Sidecar ESP32. */
+    private final class Sidecar extends Page {
+        private final RichTextField state, log;
+        private final EditField input;
+        private final StringBuffer lines = new StringBuffer();
+        private StreamConnection conn;
+        private OutputStream out;
+        private volatile boolean open;
+        private boolean scanning;
+        Sidecar() {
+            super("Sidecar (ESP32)");
+            text(this, "Bluetooth serial to your paired TorchOS-Sidecar ESP32: RFID reads and device info. Pair first in Options > Networks > Bluetooth.");
+            state = text(this, "Not connected.");
+            button(this, "Connect", new Runnable() { public void run() { connect(); } });
+            button(this, "PING", new Runnable() { public void run() { send("PING"); } });
+            button(this, "INFO", new Runnable() { public void run() { send("INFO"); } });
+            button(this, "Read RFID card (3 s)", new Runnable() { public void run() { send("RFID ONCE"); } });
+            button(this, "RFID scan on/off", new Runnable() { public void run() { scanning = !scanning; send(scanning ? "RFID ON" : "RFID OFF"); } });
+            input = new EditField("cmd> ", "", 96, Field.EDITABLE) {
+                protected boolean keyChar(char key, int flags, int time) {
+                    if (key == '\n' || key == '\r') { send(input.getText()); input.setText(""); return true; }
+                    return super.keyChar(key, flags, time);
+                }
+            };
+            input.setBackground(BackgroundFactory.createSolidBackground(0xFFFFFF)); add(input);
+            button(this, "Disconnect", new Runnable() { public void run() { close("disconnected"); } });
+            log = new RichTextField("", Field.FOCUSABLE | Field.READONLY) {
+                public void paint(Graphics g) { g.setColor(ACCENT); super.paint(g); }
+            };
+            log.setPadding(8, 16, 8, 16); add(log);
+        }
+        private void setState(final String text) {
+            invokeLater(new Runnable() { public void run() { state.setText(text); } });
+        }
+        private void append(final String line) {
+            invokeLater(new Runnable() { public void run() {
+                lines.append(line).append('\n');
+                if (lines.length() > 3000) lines.delete(0, lines.length() - 3000);
+                log.setText(lines.toString());
+            } });
+        }
+        private void connect() {
+            if (open) { setState("Already connected."); return; }
+            setState("Looking for paired TorchOS-Sidecar...");
+            new Thread() { public void run() { connectWorker(); } }.start();
+        }
+        private void connectWorker() {
+            try {
+                DiscoveryAgent agent = LocalDevice.getLocalDevice().getDiscoveryAgent();
+                RemoteDevice[] paired = agent.retrieveDevices(DiscoveryAgent.PREKNOWN);
+                RemoteDevice target = null;
+                for (int i = 0; paired != null && i < paired.length && target == null; i++) {
+                    String name = "";
+                    try { name = paired[i].getFriendlyName(false); } catch (Exception e) { }
+                    if (name != null && name.indexOf("Sidecar") >= 0) target = paired[i];
+                }
+                if (target == null) { setState("No paired device named TorchOS-Sidecar. Pair it in Options > Networks > Bluetooth."); return; }
+                String url = findSerialUrl(agent, target);
+                if (url == null) url = "btspp://" + target.getBluetoothAddress() + ":1;authenticate=false;encrypt=false;master=false";
+                StreamConnection c = (StreamConnection) Connector.open(url, Connector.READ_WRITE, true);
+                InputStream in = c.openInputStream();
+                synchronized (this) { conn = c; out = c.openOutputStream(); open = true; }
+                setState("Connected to TorchOS-Sidecar.");
+                append("[connected]");
+                send("INFO");
+                readLoop(in);
+            } catch (Exception e) {
+                setState("Bluetooth error: " + e.getClass().getName() + (e.getMessage() == null ? "" : " " + e.getMessage()) + ". Is Bluetooth on and the ESP32 powered?");
+                close(null);
+            }
+        }
+        /** SPP service search (UUID 0x1101), bounded to 15 s. */
+        private String findSerialUrl(DiscoveryAgent agent, RemoteDevice target) {
+            final String[] found = {null};
+            final Object lock = new Object();
+            final boolean[] done = {false};
+            DiscoveryListener l = new DiscoveryListener() {
+                public void deviceDiscovered(RemoteDevice d, DeviceClass c) { }
+                public void inquiryCompleted(int t) { }
+                public void servicesDiscovered(int id, ServiceRecord[] r) {
+                    if (r != null && r.length > 0 && found[0] == null)
+                        found[0] = r[0].getConnectionURL(ServiceRecord.NOAUTHENTICATE_NOENCRYPT, false);
+                }
+                public void serviceSearchCompleted(int id, int code) { synchronized (lock) { done[0] = true; lock.notifyAll(); } }
+            };
+            try {
+                agent.searchServices(null, new UUID[] {new UUID(0x1101)}, target, l);
+                synchronized (lock) { long end = System.currentTimeMillis() + 15000;
+                    while (!done[0] && System.currentTimeMillis() < end) lock.wait(1000); }
+            } catch (Exception e) { return null; }
+            return found[0];
+        }
+        private void readLoop(InputStream in) {
+            StringBuffer b = new StringBuffer();
+            try {
+                while (open) {
+                    int c = in.read();
+                    if (c < 0) break;
+                    if (c == '\n') { append(b.toString()); b.setLength(0); }
+                    else if (c >= 0x20 && c <= 0x7e && b.length() < 160) b.append((char) c);
+                }
+            } catch (Exception e) { }
+            close("connection closed");
+        }
+        private void send(final String cmd) {
+            final String c = cmd == null ? "" : cmd.trim();
+            if (c.length() == 0) return;
+            byte[] data = TorchLinkCore.ascii(c);
+            if (data == null || data.length > 96) { append("[rejected: printable ASCII, max 96]"); return; }
+            if (!open) { setState("Not connected. Press Connect."); return; }
+            final byte[] fd = data;
+            new Thread() { public void run() {
+                try { synchronized (Sidecar.this) { out.write(fd); out.write('\n'); out.flush(); } append("> " + c); }
+                catch (Exception e) { close("send failed"); }
+            } }.start();
+        }
+        private void close(String why) {
+            StreamConnection c;
+            synchronized (this) { c = conn; conn = null; open = false; }
+            if (c != null) try { c.close(); } catch (Exception e) { }
+            if (why != null) { setState("Not connected (" + why + ")."); append("[" + why + "]"); }
+        }
+        public boolean onClose() { close(null); return super.onClose(); }
+    }
+
+    /** Owner-only, on-device pairing and session control. Never reachable over TorchLink. */
+    private final class RemoteLink extends Page {
+        private final EditField host, port, code;
+        private final RichTextField message;
+        RemoteLink() {
+            super("Remote link (Deck)");
+            final LinkData d = linkStore.load();
+            text(this, "Lets the paired Steam Deck control TorchOS screens over Wi-Fi: open pages, back, home and allowlisted terminal commands. Not other apps. Ends on Stop, lock, leaving TorchOS, 90 s idle or 10 min.");
+            message = text(this, (d.key == null ? "Not paired." : "Paired.") + " " + link.last + " " + linkStore.error);
+            host = new EditField("Deck IPv4: ", d.host, 15, Field.EDITABLE);
+            port = new EditField("Port: ", Integer.toString(d.port), 5, Field.EDITABLE | EditField.FILTER_INTEGER);
+            code = new EditField("Pairing code: ", "", 48, Field.EDITABLE);
+            EditField[] fs = {host, port, code};
+            for (int i = 0; i < fs.length; i++) { fs[i].setBackground(BackgroundFactory.createSolidBackground(0xFFFFFF)); add(fs[i]); }
+            button(this, "Save settings / pair", new Runnable() { public void run() { savePairing(); } });
+            button(this, "Start remote session", new Runnable() { public void run() { message.setText(link.start()); } });
+            button(this, "Stop remote session", new Runnable() { public void run() { link.stop("stopped on phone"); message.setText(link.last); } });
+            button(this, "Forget pairing", new Runnable() { public void run() {
+                link.stop("pairing removed"); LinkData x = linkStore.load(); x.key = null;
+                message.setText(linkStore.save(x) ? "Pairing removed." : linkStore.error);
+            } });
+            host.setFocus();
+        }
+        private void savePairing() {
+            LinkData d = linkStore.load();
+            String h = host.getText().trim();
+            int p;
+            try { p = Integer.parseInt(port.getText().trim()); } catch (Exception e) { p = -1; }
+            if (!TorchLinkCore.validHost(h)) { message.setText("Invalid IPv4 address, e.g. 192.168.1.20"); return; }
+            if (p < 1024 || p > 65535) { message.setText("Port must be 1024-65535."); return; }
+            String c = code.getText().trim();
+            if (c.length() > 0) {
+                byte[] k = TorchLinkCore.pairingKey(c);
+                if (k == null) { message.setText("Pairing code must be the 32 characters shown on the Deck."); return; }
+                d.key = k;
+            }
+            d.host = h; d.port = p;
+            code.setText("");
+            message.setText(linkStore.save(d) ? (d.key == null ? "Saved. Not paired yet." : "Saved. Paired with Deck.") : linkStore.error);
+        }
+    }
+
     /** Two compact, non-focusable lines; content height follows the selected font. */
     private static final class Band extends Field {
         String first;
@@ -518,8 +914,54 @@ public final class TorchOS extends UiApplication {
             g.setColor(BG); g.fillRect(0, 0, getWidth(), getHeight());
             g.setFont(primary); g.setColor(INK);
             g.drawText(first, 16, 6, Graphics.ELLIPSIS, getWidth() - 32);
-            g.setFont(small); g.setColor(ACCENT);
-            g.drawText(second, 16, primary.getHeight() + 9, Graphics.ELLIPSIS, getWidth() - 32);
+            g.setFont(small); g.setColor(second == null && banner.startsWith("REMOTE") ? 0xFFB347 : ACCENT);
+            g.drawText(second == null ? banner : second, 16, primary.getHeight() + 9, Graphics.ELLIPSIS, getWidth() - 32);
+        }
+    }
+
+    /** Launcher tile: three per row on the 480 px screen, glyph badge + label. */
+    private static final class Tile extends Field {
+        private final String label, glyph;
+        private final int color;
+        private final Runnable action;
+        private boolean armed;
+        private final Font big = Font.getDefault().derive(Font.BOLD, 26);
+        private final Font small = Font.getDefault().derive(Font.PLAIN, 17);
+        Tile(String label, String glyph, int color, Runnable action) {
+            super(Field.FOCUSABLE);
+            this.label = label; this.glyph = glyph; this.color = color; this.action = action;
+        }
+        public int getPreferredWidth() { return 160; }
+        public int getPreferredHeight() { return 128; }
+        protected void layout(int width, int height) { setExtent(Math.min(width, 160), Math.min(height, 128)); }
+        protected void paint(Graphics g) {
+            int w = getWidth(), h = getHeight();
+            g.setColor(isFocus() ? 0x244B57 : BG); g.fillRect(0, 0, w, h);
+            int box = 72, x = (w - box) / 2;
+            g.setColor(color); g.fillRoundRect(x, 10, box, box, 18, 18);
+            if (isFocus()) { g.setColor(ACCENT); g.drawRoundRect(x - 3, 7, box + 6, box + 6, 22, 22); }
+            g.setFont(big); g.setColor(INK);
+            g.drawText(glyph, x, 10 + (box - big.getHeight()) / 2, Graphics.HCENTER, box);
+            g.setFont(small); g.setColor(isFocus() ? ACCENT : INK);
+            g.drawText(label, 0, 10 + box + 8, Graphics.HCENTER | Graphics.ELLIPSIS, w);
+        }
+        protected void drawFocus(Graphics g, boolean on) { /* paint owns focus appearance */ }
+        protected void onFocus(int direction) { super.onFocus(direction); invalidate(); }
+        protected void onUnfocus() { armed = false; super.onUnfocus(); invalidate(); }
+        protected boolean navigationClick(int status, int time) { action.run(); return true; }
+        protected boolean keyChar(char key, int flags, int time) {
+            if (key == '\n' || key == ' ') { action.run(); return true; }
+            return super.keyChar(key, flags, time);
+        }
+        protected boolean touchEvent(TouchEvent event) {
+            int x = event.getX(1), y = event.getY(1);
+            boolean inside = x >= 0 && x < getWidth() && y >= 0 && y < getHeight();
+            switch (event.getEvent()) {
+                case TouchEvent.DOWN: if (!inside) return false; setFocus(); armed = true; return true;
+                case TouchEvent.MOVE: if (!inside) armed = false; return armed;
+                case TouchEvent.UP: boolean go = armed && inside; armed = false; if (go) action.run(); return go;
+                default: return super.touchEvent(event);
+            }
         }
     }
 
