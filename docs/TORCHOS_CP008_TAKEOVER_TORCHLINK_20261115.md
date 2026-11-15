@@ -55,3 +55,46 @@ No usable signing keys exist (see CP007), so auto-run was removed. `build.sh` no
 ## Still unverified
 
 On-device: Wi-Fi socket behaviour, the permission prompt, `deactivate` on lock, UI dispatch, RMS migration of existing notes, and battery impact.
+
+## On-device results (physical Torch 9810, 15 Nov 2026)
+
+### 0.3.0 install (13:40)
+- Load completed with no reboot.
+- 898 modules before and after, with an identical name set.
+- Exactly one TorchOS, at 0.3.0.
+
+### TorchLink live session
+The phone (Wi-Fi 10.188.1.144) connected to the Deck (10.188.1.75:47810). The handshake authenticated, and the banner showed `REMOTE CONTROL ACTIVE - Deck`.
+
+| Command | Reply from the phone | Notes |
+|---|---|---|
+| `status` | `OK screen RemoteLink; Local battery: 98%` | |
+| `open 1` | `OK opened 1` | |
+| `back` | `OK back` | |
+| `run about` | `OK TorchOS 0.3 / stock OS7 pocket workstation…` | A USB screenshot showed the Terminal screen with this output |
+| `home` | `ERR home` | By design, HOME stops at the protected Remote link screen. 0.3.1 now reports this clearly. |
+| — | — | Owner pressed End (left TorchOS) |
+| `open 2` | refused: phone disconnected | Kill switch confirmed |
+
+**Earlier failure, cause not determined.** In the first session, `run about` was dropped and the phone closed the session. On retry the same command worked, and a USB screenshot taken during a later live session did not end it. The phone records the reason on the Remote link screen, but it was not captured.
+
+### Bugs found on the device, fixed in 0.3.1
+- The More > Remote link row reopened More instead of the Remote link screen.
+- The HOME reply was ambiguous.
+
+### 0.3.1 install (14:33): incident
+- The load completed (hash-pinned COD `a6573e46…acce2e`).
+- Because TorchOS 0.3.0 was still resident, the loader **rebooted the handset**.
+- After the reboot: **891 modules** and exactly one TorchOS, at 0.3.1. **7 modules were gone**: HomeScreenNotes, `net_rim_bb_facebook_lib`, `net_rim_bb_facebook_resource_high_res`, and 4 `net_rim_bb_twitter*` modules.
+
+**Evidence from the handset's own event log (`bjavaloader eventlog`, read-only):**
+- `CMM: delete net_rim_bb_twitter_… scheduled`, logged **2026/11/14 03:19**. The deletion was pending long before this session and was finalized by the reboot.
+- `CMM: HomeScreenNotes(12272) no sig from 0x33 / 0x414252`, logged at **every boot**. The module was failing signature verification and was purged by the OS.
+- `Error starting net_rim_bb_facebook: null`. The Facebook app module was already absent; only its libraries remained in the 898-module list.
+
+**Conclusion:** the loader issued no delete, and the wrapper has no erase or delete operation. However, **our reboot finalized pending OS-side removals**. The preflight did not detect them.
+
+### Procedure change (mandatory for future loads)
+1. **Preflight `eventlog`**: abort if any `CMM: delete … scheduled` or `no sig` entry is pending, and report it to the owner first.
+2. **TorchOS must be exited** (Menu > Exit TorchOS) before a load, to avoid a loader-triggered reboot.
+3. Readback after any reboot must diff the full module list, and every difference must be explained from the eventlog before declaring success.
