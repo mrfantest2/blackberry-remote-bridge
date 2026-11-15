@@ -98,3 +98,21 @@ The phone (Wi-Fi 10.188.1.144) connected to the Deck (10.188.1.75:47810). The ha
 1. **Preflight `eventlog`**: abort if any `CMM: delete … scheduled` or `no sig` entry is pending, and report it to the owner first.
 2. **TorchOS must be exited** (Menu > Exit TorchOS) before a load, to avoid a loader-triggered reboot.
 3. Readback after any reboot must diff the full module list, and every difference must be explained from the eventlog before declaring success.
+
+### 0.3.1 + Deck keep-alive session (14:46)
+
+**Idle drops explained.** The phone's 90 s idle timer starts at WELCOME, and the operator's first command arrived later than that. `serve` now sends an authenticated STATUS keep-alive every 45 s (commit `078f1d4`). Phone-side limits are unchanged.
+
+| Command | Reply from the phone |
+|---|---|
+| `open 11` | `OK opened 11` |
+| `open 5` | `OK opened 5` |
+| `back` | `OK back` |
+| `run date` | `OK Local device clock: Sun Nov 15 14:40:15 Asia/Beirut 2026` |
+| `home` | `OK stopped at Remote link (protected, owner-only)` (0.3.1 fix confirmed) |
+| `status` | `OK screen RemoteLink; Local battery: 97%` |
+| ~100 s idle | 2 × `(keep-alive) OK …`; session stayed open past the old 90 s limit |
+| `run help` | `OK Local only: help date about clear status history notes files remote…` |
+| `bye` | session ended cleanly |
+
+**Pending:** the owner has not yet confirmed that the More > Remote link row works on the handset (fixed in 0.3.1 source).
