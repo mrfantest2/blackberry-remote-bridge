@@ -63,7 +63,7 @@ cp066_vector_table:
     b cp066_trap_prefetch
     b cp066_trap_data
     b cp066_trap_reserved
-    b cp066_trap_irq
+    b cp067_irq_entry       /* CP006.7: armed SGI0 service, else CP006.6 trap */
     b cp066_trap_fiq
 
 cp066_trap_reset:
@@ -84,6 +84,8 @@ cp066_trap_data:
 cp066_trap_reserved:
     mov r0, #8
     b cp066_trap_record
+/* Unarmed IRQ fallback reached from cp067_irq_entry with LR/SPSR intact. */
+.global cp066_trap_irq
 cp066_trap_irq:
     mov r0, #5
     b cp066_trap_record
