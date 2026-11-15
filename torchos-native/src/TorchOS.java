@@ -736,7 +736,7 @@ public final class TorchOS extends UiApplication {
             EditField[] fs = {host, port, code};
             for (int i = 0; i < fs.length; i++) { fs[i].setBackground(BackgroundFactory.createSolidBackground(0xFFFFFF)); add(fs[i]); }
             add(boot);
-            button(this, "Save settings / pair", new Runnable() { public void run() { save(); } });
+            button(this, "Save settings / pair", new Runnable() { public void run() { savePairing(); } });
             button(this, "Start remote session", new Runnable() { public void run() { message.setText(link.start()); } });
             button(this, "Stop remote session", new Runnable() { public void run() { link.stop("stopped on phone"); message.setText(link.last); } });
             button(this, "Forget pairing", new Runnable() { public void run() {
@@ -745,7 +745,7 @@ public final class TorchOS extends UiApplication {
             } });
             host.setFocus();
         }
-        private void save() {
+        private void savePairing() {
             LinkData d = linkStore.load();
             String h = host.getText().trim();
             int p;
