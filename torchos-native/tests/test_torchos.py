@@ -169,7 +169,7 @@ class Contracts(unittest.TestCase):
         alx = ET.parse(ROOT / 'TorchOS.alx')
         app = alx.find('application')
         self.assertEqual(app.attrib['id'], 'TorchOS')
-        self.assertEqual(app.findtext('version'), '0.4.0')
+        self.assertEqual(app.findtext('version'), '0.4.1')
         self.assertEqual(app.findtext('fileset/directory'), 'build')
         self.assertEqual(app.findtext('fileset/files/file'), 'TorchOS.cod')
         rapc = (ROOT / 'TorchOS.rapc').read_text()
@@ -179,7 +179,7 @@ class Contracts(unittest.TestCase):
         from PIL import Image
         icon = Image.open(ROOT / 'res/TorchOS.png')
         self.assertEqual((icon.size, icon.mode), ((80, 80), 'RGBA'))
-        self.assertIn('MIDlet-Version: 0.4.0', rapc)
+        self.assertIn('MIDlet-Version: 0.4.1', rapc)
         self.assertIn('RIM-MIDlet-Flags-1: 0', rapc)  # auto-run needs RRT signing (rapc .csl bisect)
         self.assertNotIn('S25Hub', rapc)
 
