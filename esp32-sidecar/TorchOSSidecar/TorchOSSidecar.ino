@@ -29,7 +29,7 @@
 static const char *NAME = "TorchOS-Sidecar";
 static const char *VERSION = "0.1";
 static const uint8_t SIDECAR_SS_GPIO = 5, SIDECAR_RST_GPIO = 22;
-static const size_t LINE_MAX = 96;
+static const size_t SIDECAR_LINE_LIMIT = 96;
 
 BluetoothSerial bt;
 MFRC522 rfid(SIDECAR_SS_GPIO, SIDECAR_RST_GPIO);
@@ -104,7 +104,7 @@ void pump(Stream &s, String &buf) {
     char c = (char)s.read();
     if (c == '\n' || c == '\r') { handle(buf); buf = ""; }
     else if (c >= 0x20 && c <= 0x7E) {
-      if (buf.length() < LINE_MAX) buf += c;
+      if (buf.length() < SIDECAR_LINE_LIMIT) buf += c;
       else { buf = ""; emit("ERR line too long"); }
     }
   }
