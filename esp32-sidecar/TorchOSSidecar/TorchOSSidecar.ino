@@ -28,11 +28,11 @@
 
 static const char *NAME = "TorchOS-Sidecar";
 static const char *VERSION = "0.1";
-static const uint8_t PIN_SS = 5, PIN_RST = 22;
+static const uint8_t SIDECAR_SS_GPIO = 5, SIDECAR_RST_GPIO = 22;
 static const size_t LINE_MAX = 96;
 
 BluetoothSerial bt;
-MFRC522 rfid(PIN_SS, PIN_RST);
+MFRC522 rfid(SIDECAR_SS_GPIO, SIDECAR_RST_GPIO);
 bool rfidPresent = false, scanning = false;
 String btLine, usbLine;
 String lastUid;
