@@ -116,3 +116,33 @@ The phone (Wi-Fi 10.188.1.144) connected to the Deck (10.188.1.75:47810). The ha
 | `bye` | session ended cleanly |
 
 **Pending:** the owner has not yet confirmed that the More > Remote link row works on the handset (fixed in 0.3.1 source).
+
+## TorchOS 0.4.0 + ESP32 Sidecar on hardware (15:41–15:54)
+
+**Unsigned check:** JSR-82 Bluetooth (paired-device lookup, service search, `btspp` client) builds with **no `.csl`** on the authentic JDE.
+
+**ESP32 sidecar firmware v0.1**
+- **Board:** ESP32-D0WD-V3 rev 3.1, 4 MB flash (HW-394 dev board).
+- **Backup first:** the previous flash was saved as a 4 MB image on the Deck (`esp32-backups/…before-sidecar…bin`, SHA-256 `a738f465…c1b376`).
+- **Flash:** `esptool` hash-verified write.
+
+**RC522 wiring:** SDA → GPIO5, SCK → 18, MOSI → 23, MISO → 19, RST → 22, 3V3.
+- **Detected:** `rfid=ok`.
+- **First read, over USB:** `RFID D6D145BC MIFARE_1KB`.
+
+**0.4.0 install**
+- **Preflight:** event log clean.
+- **Load:** loader-triggered reboot, even with TorchOS exited. Replacing the module itself reboots the phone.
+- **After reboot:** 891 → 891 modules with an identical name set, and exactly one TorchOS at 0.4.0.
+
+**Owner photos on the handset**
+- **Launcher:** the 12-tile launcher grid renders, with focus ring and the remote banner.
+- **Sidecar app connected over Bluetooth:** `INFO … rfid=ok up=941`, then `RFID ONCE` returned **`RFID D6D145BC MIFARE_1KB`**. That is the same UID as the USB read.
+
+**Observed, to fix**
+- **Missing clock line:** the Home status band shows only "Offline / stock OS7"; the clock/battery line is not visible.
+- **About version string:** still reads 0.4.0 in 0.4.1.
+
+**0.4.1 (app icon) built** (`a002e8c7…be8fc6`, no `.csl`, icon packaged), but **not installed**:
+- **Blocked by preflight:** "no sig" log entries (TorchOS, `net_rim_bbid_common`, SilentCam).
+- **Gate refinement:** these entries recur at every boot. Only `CMM: delete … scheduled` blocks; new "no sig" modules are reported to the owner.
