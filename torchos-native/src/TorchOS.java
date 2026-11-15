@@ -53,7 +53,7 @@ public final class TorchOS extends UiApplication {
     private Terminal activeTerminal;
     static volatile String banner = "Remote: off";
 
-    /* Boot auto-run (RIM-MIDlet-Flags) and ApplicationManager.inStartup() both require the
+    /* Boot auto-run (RIM-MIDlet-Flags) and the startup-state query both require the
      * RIM Runtime API signature (verified by rapc .csl bisect, 2026-11-15). Unsigned TorchOS
      * therefore stays resident after first launch instead: Back sends it to the background. */
     public static void main(String[] args) { new TorchOS().enterEventDispatcher(); }
