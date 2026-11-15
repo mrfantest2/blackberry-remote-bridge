@@ -282,7 +282,8 @@ def take_shot(cmd, shot_state):
         lines = [l.strip() for l in r.stdout.splitlines() if l.strip()]
         path = lines[-1] if lines else ""
         if r.returncode != 0 or not path.endswith(".bmp") or not os.path.isfile(path):
-            return {"ok": False, "message": "capture failed"}
+            why = [l.strip() for l in (r.stderr or "").splitlines() if l.strip()]
+            return {"ok": False, "message": "capture failed: " + tl.fields_safe(why[-1] if why else "exit %d" % r.returncode)}
         if os.path.getsize(path) > SHOT_LIMIT:
             return {"ok": False, "message": "capture too large"}
         with open(path, "rb") as fh:

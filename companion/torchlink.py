@@ -50,6 +50,11 @@ def _printable(text):
     return all(0x20 <= ord(c) <= 0x7E for c in text)
 
 
+def fields_safe(text, limit=120):
+    """Printable, bounded text for UI messages."""
+    return "".join(c if 0x20 <= ord(c) <= 0x7E else " " for c in str(text))[:limit]
+
+
 def fields(line, n):
     if not isinstance(line, str) or not line or len(line) > MAX_LINE or not _printable(line):
         return None

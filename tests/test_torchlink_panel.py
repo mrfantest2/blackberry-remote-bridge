@@ -153,6 +153,15 @@ class PanelTest(unittest.TestCase):
         self.assertTrue(out["ok"])
         self.assertFalse(json.loads(self.req("GET", "/api/state?t=" + TOKEN)[2])["connected"])
 
+    def test_screenshot_failure_reports_reason(self):
+        d = tempfile.mkdtemp()
+        bad = os.path.join(d, "bad.sh")
+        with open(bad, "w") as fh:
+            fh.write("#!/bin/sh\necho 'BlackBerry USB not detected' >&2\nexit 3\n")
+        os.chmod(bad, stat.S_IRWXU)
+        out = panel.take_shot([bad], {"bytes": None, "lock": threading.Lock()})
+        self.assertEqual(out, {"ok": False, "message": "capture failed: BlackBerry USB not detected"})
+
     def test_screenshot_served_only_with_token(self):
         self.assertEqual(self.req("GET", "/shot.bmp?t=" + TOKEN)[0], 404)
         out = json.loads(self.req("POST", "/api/shot")[2])
