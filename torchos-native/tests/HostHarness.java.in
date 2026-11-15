@@ -1,5 +1,6 @@
 /** Host-only test doubles. These do not emulate or verify the BlackBerry VM. */
 public class HostHarness {
+    static String banner = "Remote: off"; // host double for TorchOS.banner
     static final int BG=0x101D28, INK=0xEDF4F7, MUTED=0xB9CBD6, ACCENT=0x82E3C2;
     static int count;
     static void check(boolean ok, String message) {
@@ -46,7 +47,7 @@ public class HostHarness {
         Row row=new Row("Devices","Not connected",new Runnable(){ public void run(){fired[0]++;}});
         row.layout(480,640);
         if (args[0].equals("shortcuts")) {
-            String[] groups={"1tT","2wW","3sS","4dD","5fF","6mM","nN","cC","aA","pP","oO","0"};
+            String[] groups={"1tT","2wW","3sS","4dD","5fF","6mM","nN","cC","aA","pP","oO","0","rR"};
             for (int c=0;c<=65535;c++) {
                 int expected=-1;
                 for(int i=0;i<groups.length;i++) if(groups[i].indexOf((char)c)>=0) expected=i;

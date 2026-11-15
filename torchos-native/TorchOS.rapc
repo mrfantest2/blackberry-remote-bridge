@@ -1,9 +1,9 @@
 MIDlet-Name: TorchOS
-MIDlet-Version: 0.2.0
+MIDlet-Version: 0.3.0
 MIDlet-Vendor: FanTest
 MIDlet-Jar-URL: TorchOS.jar
 MIDlet-Jar-Size: 0
 MicroEdition-Profile: MIDP-2.0
 MicroEdition-Configuration: CLDC-1.1
 MIDlet-1: TorchOS,,TorchOS
-RIM-MIDlet-Flags-1: 0
+RIM-MIDlet-Flags-1: 1

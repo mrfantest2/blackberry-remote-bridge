@@ -10,7 +10,7 @@ cd "$ROOT/build"
 exec > >(tee build.log) 2>&1
 # Remove only this module's old outputs so a failed run cannot appear successful.
 rm -f TorchOS.cod TorchOS.jar TorchOS.jad TorchOS.cso TorchOS.debug TorchOS.rapc TorchOS.err
-for input in "$JDE_HOME/rapc.jar" "$JDE_HOME/net_rim_api.jar" "$ROOT/src/TorchOS.java"; do
+for input in "$JDE_HOME/rapc.jar" "$JDE_HOME/net_rim_api.jar" "$ROOT/src/TorchOS.java" "$ROOT/src/TorchLinkCore.java"; do
     if [[ ! -f "$input" ]]; then printf 'Missing build input: %s\n' "$input"; exit 1; fi
 done
 for program in "$JDK8_HOME/bin/java" "$JDK8_HOME/bin/javac" "$WTK_HOME/bin/preverify"; do
@@ -27,7 +27,7 @@ printf 'Authentic local JDE build\nJDE_HOME=%s\nJDK8_HOME=%s\nWTK_HOME=%s\n' "$J
 "$JDK8_HOME/bin/java" -version
 cp "$ROOT/TorchOS.rapc" TorchOS.rapc
 "$JDK8_HOME/bin/java" -Djava.io.tmpdir="$TMPDIR" -jar "$JDE_HOME/rapc.jar" \
-    "import=$JDE_HOME/net_rim_api.jar" codename=TorchOS TorchOS.rapc "$ROOT/src/TorchOS.java"
+    "import=$JDE_HOME/net_rim_api.jar" codename=TorchOS TorchOS.rapc "$ROOT/src/TorchOS.java" "$ROOT/src/TorchLinkCore.java"
 test -s TorchOS.cod
 printf '\nCOD generated locally; unsigned, not installed or device-tested.\n'
 sha256sum TorchOS.cod
