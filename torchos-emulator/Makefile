@@ -10,12 +10,14 @@ CFLAGS := -mcpu=cortex-a15 -marm -mfloat-abi=soft -std=c11 -ffreestanding \
  -fno-asynchronous-unwind-tables -Os -Wall -Wextra -Werror
 LDFLAGS := -mcpu=cortex-a15 -marm -nostdlib -Wl,--build-id=none \
  -Wl,-T,$(ROOT)/linker.ld -Wl,-Map,$(OUT)/torchos.map
-OBJS := $(addprefix $(OUT)/,startup.o kernel.o guest_fdt.o hal_qemu_virt.o uart_poll.o console.o commands.o)
+OBJS := $(addprefix $(OUT)/,startup.o gic_irq.o kernel.o guest_fdt.o hal_qemu_virt.o uart_poll.o console.o commands.o)
 .PHONY: all run test clean inspect inspect-fdt
 all: $(OUT)/torchos.elf
 $(OUT):
 	mkdir -p $(OUT)
 $(OUT)/startup.o: $(ROOT)/src/startup.S | $(OUT)
+	$(CC) -mcpu=cortex-a15 -marm -c $< -o $@
+$(OUT)/gic_irq.o: $(ROOT)/src/gic_irq.S | $(OUT)
 	$(CC) -mcpu=cortex-a15 -marm -c $< -o $@
 $(OUT)/%.o: $(ROOT)/src/%.c | $(OUT)
 	$(CC) $(CFLAGS) -c $< -o $@
